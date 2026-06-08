@@ -48,20 +48,7 @@ function rpStoreCurrentPredictions(match, analysis){
   analysis.strong.forEach(pick => {
     const id = key + '|' + pick.nombre;
     if(!saved.some(x => x.id === id)){
-      saved.push({
-        id,
-        key,
-        local: match.local,
-        visita: match.visita,
-        liga: match.liga || 'Sin liga',
-        fecha: match.fecha || '',
-        hora: match.hora || '',
-        mercado: pick.nombre,
-        prob: pick.prob,
-        estado: 'pendiente',
-        resultado: '',
-        creado: now
-      });
+      saved.push({id,key,local:match.local,visita:match.visita,liga:match.liga||'Sin liga',fecha:match.fecha||'',hora:match.hora||'',mercado:pick.nombre,prob:pick.prob,estado:'pendiente',resultado:'',creado:now});
     }
   });
   rpSavePicks(saved);
@@ -82,8 +69,7 @@ function rpEvaluatePick(market, homeScore, awayScore){
   if(m.includes('ambos anotan: si')) return homeScore > 0 && awayScore > 0;
   if(m.includes('ambos anotan: no')) return !(homeScore > 0 && awayScore > 0);
   if(m.includes('doble oportunidad')) return true;
-  if(m.includes('mayor opcion')) return null;
-  if(m.includes('corner') || m.includes('tarjeta')) return null;
+  if(m.includes('corner') || m.includes('tarjeta') || m.includes('mayor opcion')) return null;
   return null;
 }
 
@@ -144,19 +130,31 @@ function rpStatusLabel(x){
   return ['⏳','PENDIENTE','pill-mid'];
 }
 
-function rpRenderResultsPanel(){
+function rpEnsurePanel(id, html){
   const main = document.querySelector('.content');
-  if(!main) return;
-  let panel = document.getElementById('rp-results-panel');
+  if(!main) return null;
+  let panel = document.getElementById(id);
   if(!panel){
     panel = document.createElement('section');
-    panel.id = 'rp-results-panel';
-    panel.className = 'card';
-    panel.innerHTML = '<div class="head"><h2>📋 Resultados de pronosticos IA</h2><button class="btn small" onclick="rpUpdateResults()">Revisar</button></div><div id="rp-results-list" style="padding:13px"></div><div class="head"><h2>📚 Historial guardado</h2><button class="btn small" onclick="rpClearHistory()">Limpiar</button></div><div id="rp-history-list" style="padding:13px"></div>';
+    panel.id = id;
+    panel.className = 'card rp-tab-panel';
+    panel.innerHTML = html;
     main.appendChild(panel);
   }
+  return panel;
+}
+
+function rpRenderResultsPanel(){
+  const panel = rpEnsurePanel('rp-results-panel','<div class="head"><h2>📊 Estadisticas IA</h2><button class="btn small" onclick="rpUpdateResults()">Revisar</button></div><div id="rp-results-list" style="padding:13px"></div><div class="head"><h2>📚 Historial guardado</h2><button class="btn small" onclick="rpClearHistory()">Limpiar</button></div><div id="rp-history-list" style="padding:13px"></div>');
+  if(!panel) return;
+  panel.dataset.tab = 'estadisticas';
   rpRenderPendingAndResults();
   rpRenderHistory();
+}
+
+function rpRenderFavoritesPanel(){
+  const panel = rpEnsurePanel('rp-favorites-panel','<div class="head"><h2>⭐ Favoritos</h2><span>Pronto</span></div><div style="padding:13px"><div class="empty">Aqui iran tus partidos o selecciones favoritas. Por ahora, los pronosticos guardados se revisan en Estadisticas.</div></div>');
+  if(panel) panel.dataset.tab = 'favoritos';
 }
 
 function rpRenderPendingAndResults(){
@@ -199,6 +197,38 @@ function rpClearHistory(){
   }
 }
 
+function rpSetupLayout(){
+  const cards = Array.from(document.querySelectorAll('.content > .card'));
+  const selected = document.querySelector('.selected');
+  if(cards[0]) cards[0].dataset.tab = 'partidos';
+  if(cards[1]) cards[1].dataset.tab = 'partidos';
+  if(selected){selected.dataset.tab = 'ia'; selected.classList.add('rp-tab-panel');}
+  rpRenderFavoritesPanel();
+  rpRenderResultsPanel();
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  const map = ['partidos','ia','favoritos','estadisticas'];
+  tabs.forEach((btn,i)=>{
+    btn.dataset.tabTarget = map[i] || 'partidos';
+    btn.onclick = function(){rpShowTab(this.dataset.tabTarget)};
+  });
+  rpShowTab('partidos');
+}
+
+function rpShowTab(tab){
+  const tabs = Array.from(document.querySelectorAll('.tab'));
+  tabs.forEach(btn=>btn.classList.toggle('active', btn.dataset.tabTarget === tab));
+  const children = Array.from(document.querySelectorAll('.content > .card, .content > .selected'));
+  children.forEach(el=>{
+    const t = el.dataset.tab || 'partidos';
+    el.style.display = t === tab ? '' : 'none';
+  });
+  const league = document.querySelector('.leagues');
+  const dates = document.querySelector('.dates');
+  if(league) league.style.display = tab === 'partidos' ? 'flex' : 'none';
+  if(dates) dates.style.display = tab === 'partidos' ? 'flex' : 'none';
+  if(tab === 'estadisticas') rpUpdateResults();
+}
+
 (function(){
   const oldAnalyze = window.analizar;
   window.analizar = function(p=null){
@@ -214,7 +244,7 @@ function rpClearHistory(){
     }catch(e){console.log('rp store error', e)}
   };
   window.addEventListener('load', function(){
-    setTimeout(rpRenderResultsPanel, 1500);
+    setTimeout(rpSetupLayout, 1200);
     setTimeout(rpUpdateResults, 4000);
     setInterval(rpUpdateResults, 15 * 60 * 1000);
   });
