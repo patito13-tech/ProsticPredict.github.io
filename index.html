@@ -1,11 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="es">
 <head>
+<meta charset="UTF-8">
 <title>Patito Stats</title>
 </head>
 
 <body>
-<h1>Bienvenido a Patito Stats</h1>
-<p>Mi primera página web.</p>
+<h1>⚽ Patito Stats</h1>
+
+<p>Calculadora simple de efectividad</p>
+
+<input type="number" id="victorias" placeholder="Victorias">
+<br><br>
+
+<input type="number" id="partidos" placeholder="Partidos Jugados">
+<br><br>
+
+<button onclick="calcular()">Calcular</button>
+
+<h2 id="resultado"></h2>
+
+<script>
+function calcular() {
+    let v = document.getElementById("victorias").value;
+    let p = document.getElementById("partidos").value;
+
+    let porcentaje = (v / p) * 100;
+
+    document.getElementById("resultado").innerHTML =
+    "Probabilidad estimada: " + porcentaje.toFixed(2) + "%";
+}
+</script>
+
 </body>
 </html>
