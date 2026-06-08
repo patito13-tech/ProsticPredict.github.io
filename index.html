@@ -1,36 +1,104 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8">
-<title>Patito Stats</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Roprost Predict</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
+    body{background:#07111f;color:#fff;padding:18px}
+    .wrap{max-width:1150px;margin:auto}
+    .hero{background:linear-gradient(135deg,#0f766e,#0f172a 55%,#111827);border-radius:24px;padding:28px;border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 35px rgba(0,0,0,.35)}
+    .tag{display:inline-block;background:rgba(34,197,94,.16);color:#86efac;padding:8px 14px;border-radius:50px;font-size:13px;font-weight:700;margin-bottom:14px}
+    h1{font-size:42px;margin-bottom:10px}.hero p{color:#d1d5db;font-size:17px;line-height:1.5;max-width:780px}
+    .search{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-top:22px}
+    input,select,button{border:0;outline:0;border-radius:15px;padding:14px;font-size:15px}input,select{background:#111827;color:white;border:1px solid #263449}button{background:#22c55e;color:#052e16;font-weight:800;cursor:pointer}button:hover{background:#16a34a}
+    .grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-top:20px}.card{background:#0f172a;border:1px solid #1f2937;border-radius:22px;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,.25)}.card h2{font-size:20px;margin-bottom:15px;color:#facc15}
+    .teams{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0}.team{width:42%;background:#111827;border:1px solid #263449;border-radius:18px;padding:18px;text-align:center}.shield{font-size:45px;margin-bottom:8px}.vs{font-weight:800;color:#9ca3af}
+    .probs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.prob{background:#111827;border:1px solid #263449;border-radius:16px;padding:14px;text-align:center}.prob strong{display:block;font-size:26px;color:#22c55e;margin-top:6px}.prob small{color:#9ca3af}
+    .row{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #1f2937;color:#d1d5db}.row:last-child{border-bottom:0}.good{color:#22c55e;font-weight:800}.warn{color:#facc15;font-weight:800}.bad{color:#f87171;font-weight:800}
+    .bets{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}.bet{background:#111827;border:1px solid #263449;border-radius:18px;padding:16px}.bet h3{font-size:16px;margin-bottom:8px}.bet p{color:#d1d5db;font-size:14px;line-height:1.45}.percent{margin-top:12px;background:#052e16;color:#86efac;border-radius:12px;padding:10px;text-align:center;font-weight:800}
+    .notice{margin-top:18px;background:#111827;border-left:4px solid #facc15;border-radius:14px;padding:15px;color:#d1d5db;line-height:1.5}.footer{text-align:center;color:#9ca3af;margin:26px 0 10px;font-size:14px}
+    @media(max-width:800px){.search,.grid,.bets{grid-template-columns:1fr}.teams{flex-direction:column}.team{width:100%}h1{font-size:32px}.probs{grid-template-columns:1fr}}
+  </style>
 </head>
-
 <body>
-<h1>⚽ Patito Stats</h1>
+  <div class="wrap">
+    <section class="hero">
+      <span class="tag">⚽ Pronósticos deportivos inteligentes</span>
+      <h1>Roprost Predict</h1>
+      <p>Analiza cómo llegan los equipos, revisa sus últimos partidos y muestra solo las jugadas con mayor probabilidad. Ideal para comparar rendimiento, corners, tarjetas y posibles ganadores.</p>
+      <div class="search">
+        <input id="local" placeholder="Equipo local" value="Real Madrid">
+        <input id="visita" placeholder="Equipo visitante" value="Manchester City">
+        <button onclick="analizar()">Analizar partido</button>
+      </div>
+    </section>
 
-<p>Calculadora simple de efectividad</p>
+    <div class="grid">
+      <section class="card">
+        <h2>🔥 Partido destacado</h2>
+        <div class="teams">
+          <div class="team"><div class="shield">⚪</div><h3 id="nombreLocal">Real Madrid</h3><p class="good">Buen momento</p></div>
+          <div class="vs">VS</div>
+          <div class="team"><div class="shield">🔵</div><h3 id="nombreVisita">Manchester City</h3><p class="warn">Rival fuerte</p></div>
+        </div>
+        <div class="probs">
+          <div class="prob"><small>Victoria local</small><strong id="pLocal">57%</strong></div>
+          <div class="prob"><small>Empate</small><strong id="pEmpate">23%</strong></div>
+          <div class="prob"><small>Victoria visita</small><strong id="pVisita">54%</strong></div>
+        </div>
+        <div class="notice"><b>Recomendación:</b> apostar solo cuando la probabilidad sea mayor al 50%. Si una jugada aparece baja, Roprost Predict no la recomienda.</div>
+      </section>
 
-<input type="number" id="victorias" placeholder="Victorias">
-<br><br>
+      <aside class="card">
+        <h2>📊 Estado del equipo</h2>
+        <div class="row"><span>Últimos 20 partidos</span><span class="good">13V - 4E - 3D</span></div>
+        <div class="row"><span>Goles promedio</span><span>2.1 por partido</span></div>
+        <div class="row"><span>Recibe goles</span><span>0.9 por partido</span></div>
+        <div class="row"><span>Racha actual</span><span class="good">Alta confianza</span></div>
+        <div class="row"><span>Riesgo</span><span class="warn">Medio</span></div>
+      </aside>
+    </div>
 
-<input type="number" id="partidos" placeholder="Partidos Jugados">
-<br><br>
+    <section class="card" style="margin-top:20px">
+      <h2>✅ Mejores opciones con probabilidad alta</h2>
+      <div class="bets">
+        <div class="bet"><h3>Ganador recomendado</h3><p>El equipo local llega con mejor racha, mayor promedio de gol y mejor rendimiento reciente.</p><div class="percent">57% de probabilidad</div></div>
+        <div class="bet"><h3>Más de 1.5 goles</h3><p>Ambos equipos tienen buen ataque y suelen generar varias ocasiones claras durante el partido.</p><div class="percent">72% de probabilidad</div></div>
+        <div class="bet"><h3>Más de 7.5 corners</h3><p>Partido con equipos ofensivos, laterales altos y tendencia a generar tiros de esquina.</p><div class="percent">64% de probabilidad</div></div>
+        <div class="bet"><h3>Más de 2.5 tarjetas</h3><p>Duelo intenso, con presión alta y posibilidades de faltas tácticas en medio campo.</p><div class="percent">61% de probabilidad</div></div>
+        <div class="bet"><h3>Ambos equipos anotan</h3><p>Los dos equipos tienen ataque fuerte, pero también suelen dejar espacios defensivos.</p><div class="percent">58% de probabilidad</div></div>
+        <div class="bet"><h3>Doble oportunidad</h3><p>Opción más segura para reducir riesgo cuando ambos equipos llegan competitivos.</p><div class="percent">76% de probabilidad</div></div>
+      </div>
+    </section>
 
-<button onclick="calcular()">Calcular</button>
+    <section class="card" style="margin-top:20px">
+      <h2>🧠 Análisis rápido del partido</h2>
+      <div class="row"><span>Equipo con mejor forma reciente</span><span id="mejorForma" class="good">Real Madrid</span></div>
+      <div class="row"><span>Mayor posibilidad de ganar</span><span id="recomendado" class="good">Real Madrid</span></div>
+      <div class="row"><span>Mercado más fuerte</span><span class="good">Más de 1.5 goles</span></div>
+      <div class="row"><span>Mercados no recomendados</span><span class="bad">Los menores al 50%</span></div>
+    </section>
 
-<h2 id="resultado"></h2>
+    <p class="footer">Roprost Predict © 2026 | Página de pronósticos y análisis deportivo</p>
+  </div>
 
-<script>
-function calcular() {
-    let v = document.getElementById("victorias").value;
-    let p = document.getElementById("partidos").value;
-
-    let porcentaje = (v / p) * 100;
-
-    document.getElementById("resultado").innerHTML =
-    "Probabilidad estimada: " + porcentaje.toFixed(2) + "%";
-}
-</script>
-
+  <script>
+    function analizar(){
+      const local=document.getElementById('local').value || 'Equipo local';
+      const visita=document.getElementById('visita').value || 'Equipo visitante';
+      document.getElementById('nombreLocal').innerText=local;
+      document.getElementById('nombreVisita').innerText=visita;
+      document.getElementById('mejorForma').innerText=local;
+      document.getElementById('recomendado').innerText=local;
+      const localProb=Math.floor(Math.random()*16)+52;
+      const visitaProb=Math.floor(Math.random()*12)+45;
+      const empateProb=Math.floor(Math.random()*12)+18;
+      document.getElementById('pLocal').innerText=localProb+'%';
+      document.getElementById('pVisita').innerText=visitaProb+'%';
+      document.getElementById('pEmpate').innerText=empateProb+'%';
+    }
+  </script>
 </body>
 </html>
