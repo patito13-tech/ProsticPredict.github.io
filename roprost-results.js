@@ -130,6 +130,47 @@ function rpStatusLabel(x){
   return ['⏳','PENDIENTE','pill-mid'];
 }
 
+function rpGroupByMatch(items){
+  const groups = {};
+  items.forEach(x=>{
+    const key = x.key || rpMatchKey(x.local, x.visita);
+    if(!groups[key]) groups[key] = {key, local:x.local, visita:x.visita, liga:x.liga || 'Sin liga', fecha:x.fecha || '', hora:x.hora || '', items:[]};
+    groups[key].items.push(x);
+  });
+  return Object.values(groups);
+}
+
+function rpGroupStatus(items){
+  const win = items.filter(x=>x.estado==='ganada').length;
+  const lose = items.filter(x=>x.estado==='perdida').length;
+  const nodata = items.filter(x=>x.estado==='sin_datos').length;
+  const pending = items.filter(x=>x.estado==='pendiente').length;
+  if(pending) return ['⏳', pending + ' pendientes', 'pill-mid'];
+  if(lose) return ['❌', lose + ' perdidas', 'pill-risk'];
+  if(nodata && !win && !lose) return ['⚠️', nodata + ' sin datos', 'pill-mid'];
+  return ['✅', win + ' ganadas', 'pill-ok'];
+}
+
+function rpToggleGroup(id){
+  const el = document.getElementById(id);
+  if(!el) return;
+  el.style.display = el.style.display === 'none' ? 'block' : 'none';
+}
+
+function rpRenderGroupedRows(items, prefix){
+  const groups = rpGroupByMatch(items).reverse();
+  return groups.map((g,idx)=>{
+    const s = rpGroupStatus(g.items);
+    const bodyId = prefix + '-' + idx;
+    const total = g.items.length;
+    const detail = g.items.map(x=>{
+      const st = rpStatusLabel(x);
+      return `<div class="pick" style="padding-left:8px"><b>${st[0]} ${x.mercado}<br><small>${x.prob}% · Resultado: ${x.resultado || 'pendiente'}</small></b><span class="${st[2]}">${st[1]}</span></div>`;
+    }).join('');
+    return `<div class="pick" onclick="rpToggleGroup('${bodyId}')" style="cursor:pointer"><b>${s[0]} ${g.local} vs ${g.visita}<br><small>${total} pronostico(s) · toca para ver detalles</small></b><span class="${s[2]}">${s[1]}</span></div><div id="${bodyId}" style="display:none;border-left:2px solid #2b405c;margin-left:8px">${detail}</div>`;
+  }).join('');
+}
+
 function rpEnsurePanel(id, html){
   const main = document.querySelector('.content');
   if(!main) return null;
@@ -160,34 +201,27 @@ function rpRenderFavoritesPanel(){
 function rpRenderPendingAndResults(){
   const box = document.getElementById('rp-results-list');
   if(!box) return;
-  const saved = rpGetSavedPicks().slice().reverse();
+  const saved = rpGetSavedPicks();
   if(!saved.length){box.innerHTML = '<div class="empty">Aun no hay pronosticos guardados. Selecciona un partido y la IA guardara las opciones +70%.</div>';return;}
   const win = saved.filter(x => x.estado === 'ganada').length;
   const lose = saved.filter(x => x.estado === 'perdida').length;
   const pending = saved.filter(x => x.estado === 'pendiente').length;
-  const rows = saved.slice(0,20).map(x => {
-    const s = rpStatusLabel(x);
-    return `<div class="pick"><b>${s[0]} ${x.local} vs ${x.visita}<br><small>${x.mercado} · ${x.prob}% · Resultado: ${x.resultado || 'pendiente'}</small></b><span class="${s[2]}">${s[1]}</span></div>`;
-  }).join('');
-  box.innerHTML = `<p class="info"><b>Resumen:</b> ✅ ${win} ganadas · ❌ ${lose} perdidas · ⏳ ${pending} pendientes</p>${rows}`;
+  const grouped = rpRenderGroupedRows(saved, 'rp-live-group');
+  box.innerHTML = `<p class="info"><b>Resumen:</b> ✅ ${win} ganadas · ❌ ${lose} perdidas · ⏳ ${pending} pendientes</p>${grouped}`;
 }
 
 function rpRenderHistory(){
   const box = document.getElementById('rp-history-list');
   if(!box) return;
-  const history = rpGetHistory().slice().reverse();
+  const history = rpGetHistory();
   if(!history.length){box.innerHTML = '<div class="empty">Todavia no hay partidos terminados en el historial. Cuando un pronostico deje de estar pendiente, quedara guardado aqui.</div>';return;}
   const win = history.filter(x => x.estado === 'ganada').length;
   const lose = history.filter(x => x.estado === 'perdida').length;
   const nodata = history.filter(x => x.estado === 'sin_datos').length;
   const total = history.length;
   const pct = total ? Math.round((win / total) * 100) : 0;
-  const rows = history.slice(0,30).map(x => {
-    const s = rpStatusLabel(x);
-    const date = x.fechaRegistro ? new Date(x.fechaRegistro).toLocaleDateString('es-PE') : '';
-    return `<div class="pick"><b>${s[0]} ${x.local} vs ${x.visita}<br><small>${x.mercado} · ${x.prob}% · Resultado: ${x.resultado || '-'} · ${date}</small></b><span class="${s[2]}">${s[1]}</span></div>`;
-  }).join('');
-  box.innerHTML = `<p class="info"><b>Historial:</b> Total ${total} · ✅ ${win} · ❌ ${lose} · ⚠️ ${nodata} · Acierto ${pct}%</p>${rows}`;
+  const grouped = rpRenderGroupedRows(history, 'rp-history-group');
+  box.innerHTML = `<p class="info"><b>Historial:</b> Total ${total} · ✅ ${win} · ❌ ${lose} · ⚠️ ${nodata} · Acierto ${pct}%</p>${grouped}`;
 }
 
 function rpClearHistory(){
