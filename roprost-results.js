@@ -10,6 +10,36 @@ function rpSavePicks(items){
   localStorage.setItem('rp_saved_picks', JSON.stringify(items));
 }
 
+function rpGetHistory(){
+  try{return JSON.parse(localStorage.getItem('rp_history_results') || '[]')}catch(e){return []}
+}
+
+function rpSaveHistory(items){
+  localStorage.setItem('rp_history_results', JSON.stringify(items));
+}
+
+function rpAddToHistory(item){
+  if(!item || item.estado === 'pendiente') return;
+  const history = rpGetHistory();
+  const id = item.id + '|' + item.estado + '|' + item.resultado;
+  if(!history.some(x => x.historyId === id)){
+    history.push({
+      historyId:id,
+      fechaRegistro:new Date().toISOString(),
+      fecha:item.fecha || '',
+      hora:item.hora || '',
+      local:item.local,
+      visita:item.visita,
+      liga:item.liga || 'Sin liga',
+      mercado:item.mercado,
+      prob:item.prob,
+      resultado:item.resultado || '',
+      estado:item.estado
+    });
+    rpSaveHistory(history);
+  }
+}
+
 function rpStoreCurrentPredictions(match, analysis){
   if(!match || !analysis || !analysis.strong || !analysis.strong.length) return;
   const saved = rpGetSavedPicks();
@@ -41,7 +71,6 @@ function rpStoreCurrentPredictions(match, analysis){
 function rpEvaluatePick(market, homeScore, awayScore){
   const totalGoals = Number(homeScore) + Number(awayScore);
   const m = String(market || '').toLowerCase();
-
   if(m.includes('mas de') && m.includes('goles')){
     const line = parseFloat(m.match(/mas de ([0-9.]+)/)?.[1] || '0');
     return totalGoals > line;
@@ -100,12 +129,19 @@ async function rpUpdateResults(){
     if(!final) return;
     const verdict = rpEvaluatePick(item.mercado, final.homeScore, final.awayScore);
     item.resultado = final.text;
-    if(verdict === true){item.estado = 'ganada'; changed = true;}
-    else if(verdict === false){item.estado = 'perdida'; changed = true;}
-    else {item.estado = 'sin_datos'; changed = true;}
+    if(verdict === true){item.estado = 'ganada'; changed = true; rpAddToHistory(item);}
+    else if(verdict === false){item.estado = 'perdida'; changed = true; rpAddToHistory(item);}
+    else {item.estado = 'sin_datos'; changed = true; rpAddToHistory(item);}
   });
   if(changed) rpSavePicks(saved);
   rpRenderResultsPanel();
+}
+
+function rpStatusLabel(x){
+  if(x.estado === 'ganada') return ['✅','GANADA','pill-ok'];
+  if(x.estado === 'perdida') return ['❌','PERDIDA','pill-risk'];
+  if(x.estado === 'sin_datos') return ['⚠️','SIN DATOS','pill-mid'];
+  return ['⏳','PENDIENTE','pill-mid'];
 }
 
 function rpRenderResultsPanel(){
@@ -116,21 +152,51 @@ function rpRenderResultsPanel(){
     panel = document.createElement('section');
     panel.id = 'rp-results-panel';
     panel.className = 'card';
-    panel.innerHTML = '<div class="head"><h2>📋 Resultados de pronosticos IA</h2><button class="btn small" onclick="rpUpdateResults()">Revisar</button></div><div id="rp-results-list" style="padding:13px"></div>';
+    panel.innerHTML = '<div class="head"><h2>📋 Resultados de pronosticos IA</h2><button class="btn small" onclick="rpUpdateResults()">Revisar</button></div><div id="rp-results-list" style="padding:13px"></div><div class="head"><h2>📚 Historial guardado</h2><button class="btn small" onclick="rpClearHistory()">Limpiar</button></div><div id="rp-history-list" style="padding:13px"></div>';
     main.appendChild(panel);
   }
+  rpRenderPendingAndResults();
+  rpRenderHistory();
+}
+
+function rpRenderPendingAndResults(){
   const box = document.getElementById('rp-results-list');
+  if(!box) return;
   const saved = rpGetSavedPicks().slice().reverse();
   if(!saved.length){box.innerHTML = '<div class="empty">Aun no hay pronosticos guardados. Selecciona un partido y la IA guardara las opciones +70%.</div>';return;}
   const win = saved.filter(x => x.estado === 'ganada').length;
   const lose = saved.filter(x => x.estado === 'perdida').length;
   const pending = saved.filter(x => x.estado === 'pendiente').length;
   const rows = saved.slice(0,20).map(x => {
-    const icon = x.estado === 'ganada' ? '✅' : x.estado === 'perdida' ? '❌' : x.estado === 'sin_datos' ? '⚠️' : '⏳';
-    const status = x.estado === 'ganada' ? 'GANADA' : x.estado === 'perdida' ? 'PERDIDA' : x.estado === 'sin_datos' ? 'SIN DATOS' : 'PENDIENTE';
-    return `<div class="pick"><b>${icon} ${x.local} vs ${x.visita}<br><small>${x.mercado} · ${x.prob}% · Resultado: ${x.resultado || 'pendiente'}</small></b><span class="${x.estado==='ganada'?'pill-ok':x.estado==='perdida'?'pill-risk':'pill-mid'}">${status}</span></div>`;
+    const s = rpStatusLabel(x);
+    return `<div class="pick"><b>${s[0]} ${x.local} vs ${x.visita}<br><small>${x.mercado} · ${x.prob}% · Resultado: ${x.resultado || 'pendiente'}</small></b><span class="${s[2]}">${s[1]}</span></div>`;
   }).join('');
   box.innerHTML = `<p class="info"><b>Resumen:</b> ✅ ${win} ganadas · ❌ ${lose} perdidas · ⏳ ${pending} pendientes</p>${rows}`;
+}
+
+function rpRenderHistory(){
+  const box = document.getElementById('rp-history-list');
+  if(!box) return;
+  const history = rpGetHistory().slice().reverse();
+  if(!history.length){box.innerHTML = '<div class="empty">Todavia no hay partidos terminados en el historial. Cuando un pronostico deje de estar pendiente, quedara guardado aqui.</div>';return;}
+  const win = history.filter(x => x.estado === 'ganada').length;
+  const lose = history.filter(x => x.estado === 'perdida').length;
+  const nodata = history.filter(x => x.estado === 'sin_datos').length;
+  const total = history.length;
+  const pct = total ? Math.round((win / total) * 100) : 0;
+  const rows = history.slice(0,30).map(x => {
+    const s = rpStatusLabel(x);
+    const date = x.fechaRegistro ? new Date(x.fechaRegistro).toLocaleDateString('es-PE') : '';
+    return `<div class="pick"><b>${s[0]} ${x.local} vs ${x.visita}<br><small>${x.mercado} · ${x.prob}% · Resultado: ${x.resultado || '-'} · ${date}</small></b><span class="${s[2]}">${s[1]}</span></div>`;
+  }).join('');
+  box.innerHTML = `<p class="info"><b>Historial:</b> Total ${total} · ✅ ${win} · ❌ ${lose} · ⚠️ ${nodata} · Acierto ${pct}%</p>${rows}`;
+}
+
+function rpClearHistory(){
+  if(confirm('¿Deseas limpiar el historial guardado?')){
+    localStorage.removeItem('rp_history_results');
+    rpRenderResultsPanel();
+  }
 }
 
 (function(){
