@@ -1,221 +1,38 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Roprost Predict</title>
-  <style>
-    *{margin:0;padding:0;box-sizing:border-box;font-family:Arial,Helvetica,sans-serif}
-    body{background:#07111f;color:#fff;padding:18px}
-    .wrap{max-width:1150px;margin:auto}
-    .hero{background:linear-gradient(135deg,#0f766e,#0f172a 55%,#111827);border-radius:24px;padding:28px;border:1px solid rgba(255,255,255,.12);box-shadow:0 12px 35px rgba(0,0,0,.35)}
-    .tag{display:inline-block;background:rgba(34,197,94,.16);color:#86efac;padding:8px 14px;border-radius:50px;font-size:13px;font-weight:700;margin-bottom:14px}
-    h1{font-size:42px;margin-bottom:10px}.hero p{color:#d1d5db;font-size:17px;line-height:1.5;max-width:850px}
-    .search{display:grid;grid-template-columns:1fr 1fr auto;gap:12px;margin-top:22px}
-    input,select,button{border:0;outline:0;border-radius:15px;padding:14px;font-size:15px}input,select{background:#111827;color:white;border:1px solid #263449}button{background:#22c55e;color:#052e16;font-weight:800;cursor:pointer}button:hover{background:#16a34a}
-    .grid{display:grid;grid-template-columns:2fr 1fr;gap:18px;margin-top:20px}.card{background:#0f172a;border:1px solid #1f2937;border-radius:22px;padding:20px;box-shadow:0 8px 24px rgba(0,0,0,.25)}.card h2{font-size:20px;margin-bottom:15px;color:#facc15}
-    .teams{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:20px 0}.team{width:42%;background:#111827;border:1px solid #263449;border-radius:18px;padding:18px;text-align:center}.shield{font-size:45px;margin-bottom:8px}.vs{font-weight:800;color:#9ca3af}
-    .probs{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}.prob{background:#111827;border:1px solid #263449;border-radius:16px;padding:14px;text-align:center}.prob strong{display:block;font-size:26px;color:#22c55e;margin-top:6px}.prob small{color:#9ca3af}
-    .row{display:flex;justify-content:space-between;gap:10px;padding:12px 0;border-bottom:1px solid #1f2937;color:#d1d5db}.row:last-child{border-bottom:0}.good{color:#22c55e;font-weight:800}.warn{color:#facc15;font-weight:800}.bad{color:#f87171;font-weight:800}
-    .filters{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:15px}.pill{background:#111827;border:1px solid #263449;color:#d1d5db;border-radius:30px;padding:10px 14px;cursor:pointer;font-weight:700}.pill.active{background:#22c55e;color:#052e16;border-color:#22c55e}
-    .matches{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}.match{background:#111827;border:1px solid #263449;border-radius:18px;padding:16px}.match .league{color:#facc15;font-size:13px;font-weight:800;margin-bottom:10px}.match h3{font-size:17px;line-height:1.35;margin-bottom:8px}.match p{color:#9ca3af;font-size:14px}.match button{width:100%;margin-top:13px;padding:11px;border-radius:12px}
-    .bets{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-top:18px}.bet{background:#111827;border:1px solid #263449;border-radius:18px;padding:16px}.bet h3{font-size:16px;margin-bottom:8px}.bet p{color:#d1d5db;font-size:14px;line-height:1.45}.percent{margin-top:12px;background:#052e16;color:#86efac;border-radius:12px;padding:10px;text-align:center;font-weight:800}
-    .notice{margin-top:18px;background:#111827;border-left:4px solid #facc15;border-radius:14px;padding:15px;color:#d1d5db;line-height:1.5}.loading{color:#9ca3af;padding:12px 0}.footer{text-align:center;color:#9ca3af;margin:26px 0 10px;font-size:14px}
-    @media(max-width:900px){.search,.grid,.bets,.matches{grid-template-columns:1fr}.teams{flex-direction:column}.team{width:100%}h1{font-size:32px}.probs{grid-template-columns:1fr}}
-  </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roprost Predict</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;font-family:Arial,Helvetica,sans-serif}body{background:#eef1f4;color:#111827}.app{max-width:1100px;margin:auto;min-height:100vh;background:#f5f7fa}.top{background:#12a150;color:white;padding:16px;border-radius:0 0 22px 22px;box-shadow:0 6px 20px #0002}.topline{display:flex;justify-content:space-between;align-items:center;gap:12px}.brand{display:flex;align-items:center;gap:10px}.logo{width:40px;height:40px;border:2px solid white;border-radius:12px;display:grid;place-items:center;font-weight:900}.brand h1{font-size:25px}.brand p{font-size:12px;color:#dcfce7}.icons{font-size:20px;display:flex;gap:12px}.tabs{display:flex;gap:8px;margin-top:14px;overflow-x:auto}.tab{border:0;border-radius:22px;background:#ffffff33;color:white;padding:10px 15px;font-weight:800;white-space:nowrap}.tab.active{background:white;color:#15803d}.dates{background:#121826;display:flex;overflow-x:auto;padding:0 8px}.date{min-width:110px;background:transparent;color:#cbd5e1;border:0;padding:12px 6px;border-bottom:3px solid transparent}.date strong{display:block;font-size:14px}.date small{font-size:11px;color:#94a3b8}.date.active{color:white;border-color:#22c55e}.leagues{background:white;display:flex;gap:12px;overflow-x:auto;padding:13px 15px;border-bottom:1px solid #e5e7eb}.league-pill{min-width:68px;text-align:center;font-size:11px;color:#334155}.circle{width:50px;height:50px;margin:auto auto 5px;border-radius:50%;display:grid;place-items:center;background:#f8fafc;border:2px solid #22c55e;font-size:23px}.content{padding:14px}.card{background:white;border:1px solid #e5e7eb;border-radius:18px;box-shadow:0 4px 14px #0f172a12;margin-bottom:15px;overflow:hidden}.head{display:flex;justify-content:space-between;align-items:center;background:#f8fafc;border-bottom:1px solid #e5e7eb;padding:12px 14px}.head h2{font-size:15px}.head span{font-size:12px;color:#64748b}.search{display:grid;grid-template-columns:1fr 1fr auto;gap:10px;padding:13px}.search input{border:1px solid #cbd5e1;border-radius:13px;padding:13px}.btn{border:0;border-radius:13px;background:#16a34a;color:white;font-weight:900;padding:13px 15px;cursor:pointer}.competition{border:1px solid #e5e7eb;border-radius:15px;margin-bottom:13px;overflow:hidden;background:white}.comp-head{display:flex;justify-content:space-between;align-items:center;background:#f1f5f9;padding:10px 13px;border-bottom:1px solid #e5e7eb}.comp-head b{font-size:13px;text-transform:uppercase}.comp-head small{color:#64748b}.match{display:grid;grid-template-columns:1fr 76px 1fr 90px;align-items:center;gap:8px;padding:12px 13px;border-bottom:1px solid #f1f5f9;cursor:pointer}.match:last-child{border-bottom:0}.match:hover{background:#f8fafc}.team{display:flex;align-items:center;gap:8px;font-size:14px}.team.away{justify-content:flex-end;text-align:right}.badge{width:28px;height:28px;border-radius:50%;background:#eef2ff;border:1px solid #e5e7eb;display:grid;place-items:center;overflow:hidden;flex:0 0 auto}.badge img{width:100%;height:100%;object-fit:contain}.time{background:#111827;color:white;text-align:center;border-radius:10px;padding:6px 3px;font-weight:900;font-size:13px}.time small{display:block;font-size:9px;color:#9ca3af}.mini{background:#dcfce7;color:#15803d;border-radius:12px;text-align:center;font-size:12px;font-weight:900;padding:9px 5px}.empty{padding:25px;text-align:center;color:#64748b}.selected{display:grid;grid-template-columns:2fr 1fr;gap:15px}.game{padding:17px}.teams{display:flex;align-items:center;justify-content:space-between;gap:12px}.big{width:42%;background:#f8fafc;border:1px solid #e5e7eb;border-radius:18px;text-align:center;padding:16px}.shield{font-size:42px}.vs{font-weight:900;color:#64748b}.bars{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:15px}.bar{background:#f8fafc;border:1px solid #e5e7eb;border-radius:14px;padding:12px;text-align:center}.bar small{color:#64748b}.bar strong{display:block;color:#16a34a;font-size:24px;margin-top:5px}.stats{padding:15px}.stat{display:flex;justify-content:space-between;border-bottom:1px solid #e5e7eb;padding:10px 0;font-size:14px}.stat:last-child{border-bottom:0}.good{color:#16a34a;font-weight:900}.warn{color:#ca8a04;font-weight:900}.info{padding:13px 15px;color:#475569;line-height:1.45;font-size:13px}.footer{text-align:center;color:#64748b;padding:20px;font-size:13px}@media(max-width:820px){.selected,.search{grid-template-columns:1fr}.match{grid-template-columns:1fr 70px 1fr}.mini{grid-column:1/4}.teams{flex-direction:column}.big{width:100%}.content{padding:11px}}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <section class="hero">
-      <span class="tag">⚽ Pronósticos deportivos inteligentes</span>
-      <h1>Roprost Predict</h1>
-      <p>Analiza partidos que se vienen, revisa probabilidades y muestra solo jugadas con más de 50% de confianza. Puedes elegir un partido de la lista y generar una vista rápida de pronóstico.</p>
-      <div class="search">
-        <input id="local" placeholder="Equipo local" value="Real Madrid">
-        <input id="visita" placeholder="Equipo visitante" value="Manchester City">
-        <button onclick="analizar()">Analizar partido</button>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top:20px">
-      <h2>📅 Partidos que se vienen</h2>
-      <div class="filters">
-        <button class="pill active" onclick="filtrarDia('todos',this)">Todos</button>
-        <button class="pill" onclick="filtrarDia('hoy',this)">Hoy</button>
-        <button class="pill" onclick="filtrarDia('manana',this)">Mañana</button>
-        <button class="pill" onclick="filtrarDia('pasado',this)">Pasado mañana</button>
-      </div>
-      <div id="estadoCarga" class="loading">Cargando partidos próximos...</div>
-      <div id="listaPartidos" class="matches"></div>
-      <div class="notice"><b>Nota:</b> si algún partido no aparece, puede ser porque la base de datos gratuita no lo tiene cargado. La página igual muestra partidos de respaldo para mantener el diseño activo.</div>
-    </section>
-
-    <div class="grid">
-      <section class="card">
-        <h2>🔥 Partido seleccionado</h2>
-        <div class="teams">
-          <div class="team"><div class="shield">⚪</div><h3 id="nombreLocal">Real Madrid</h3><p class="good">Buen momento</p></div>
-          <div class="vs">VS</div>
-          <div class="team"><div class="shield">🔵</div><h3 id="nombreVisita">Manchester City</h3><p class="warn">Rival fuerte</p></div>
-        </div>
-        <div class="probs">
-          <div class="prob"><small>Victoria local</small><strong id="pLocal">57%</strong></div>
-          <div class="prob"><small>Empate</small><strong id="pEmpate">23%</strong></div>
-          <div class="prob"><small>Victoria visita</small><strong id="pVisita">54%</strong></div>
-        </div>
-        <div class="notice"><b>Recomendación:</b> apostar solo cuando la probabilidad sea mayor al 50%. Si una jugada aparece baja, Roprost Predict no la recomienda.</div>
-      </section>
-
-      <aside class="card">
-        <h2>📊 Estado del equipo</h2>
-        <div class="row"><span>Últimos 20 partidos</span><span class="good">13V - 4E - 3D</span></div>
-        <div class="row"><span>Goles promedio</span><span>2.1 por partido</span></div>
-        <div class="row"><span>Recibe goles</span><span>0.9 por partido</span></div>
-        <div class="row"><span>Racha actual</span><span class="good">Alta confianza</span></div>
-        <div class="row"><span>Riesgo</span><span class="warn">Medio</span></div>
-      </aside>
-    </div>
-
-    <section class="card" style="margin-top:20px">
-      <h2>✅ Mejores opciones con probabilidad alta</h2>
-      <div class="bets">
-        <div class="bet"><h3>Ganador recomendado</h3><p id="textoGanador">El equipo local llega con mejor racha, mayor promedio de gol y mejor rendimiento reciente.</p><div class="percent" id="ganadorProb">57% de probabilidad</div></div>
-        <div class="bet"><h3>Más de 1.5 goles</h3><p>Ambos equipos tienen buen ataque y suelen generar varias ocasiones claras durante el partido.</p><div class="percent">72% de probabilidad</div></div>
-        <div class="bet"><h3>Más de 7.5 corners</h3><p>Partido con equipos ofensivos, laterales altos y tendencia a generar tiros de esquina.</p><div class="percent">64% de probabilidad</div></div>
-        <div class="bet"><h3>Más de 2.5 tarjetas</h3><p>Duelo intenso, con presión alta y posibilidades de faltas tácticas en medio campo.</p><div class="percent">61% de probabilidad</div></div>
-        <div class="bet"><h3>Ambos equipos anotan</h3><p>Los dos equipos tienen ataque fuerte, pero también suelen dejar espacios defensivos.</p><div class="percent">58% de probabilidad</div></div>
-        <div class="bet"><h3>Doble oportunidad</h3><p>Opción más segura para reducir riesgo cuando ambos equipos llegan competitivos.</p><div class="percent">76% de probabilidad</div></div>
-      </div>
-    </section>
-
-    <section class="card" style="margin-top:20px">
-      <h2>🧠 Análisis rápido del partido</h2>
-      <div class="row"><span>Equipo con mejor forma reciente</span><span id="mejorForma" class="good">Real Madrid</span></div>
-      <div class="row"><span>Mayor posibilidad de ganar</span><span id="recomendado" class="good">Real Madrid</span></div>
-      <div class="row"><span>Mercado más fuerte</span><span class="good">Más de 1.5 goles</span></div>
-      <div class="row"><span>Mercados no recomendados</span><span class="bad">Los menores al 50%</span></div>
-    </section>
-
-    <p class="footer">Roprost Predict © 2026 | Página de pronósticos y análisis deportivo</p>
-  </div>
-
-  <script>
-    let partidos = [];
-    let filtroActual = 'todos';
-
-    function fechaISO(offset){
-      const d = new Date();
-      d.setDate(d.getDate()+offset);
-      return d.toISOString().split('T')[0];
-    }
-
-    function etiquetaDia(fecha){
-      const hoy=fechaISO(0), manana=fechaISO(1), pasado=fechaISO(2);
-      if(fecha===hoy) return 'hoy';
-      if(fecha===manana) return 'manana';
-      if(fecha===pasado) return 'pasado';
-      return 'otros';
-    }
-
-    function nombreDia(codigo){
-      if(codigo==='hoy') return 'Hoy';
-      if(codigo==='manana') return 'Mañana';
-      if(codigo==='pasado') return 'Pasado mañana';
-      return 'Próximo';
-    }
-
-    async function cargarPartidos(){
-      const fechas=[fechaISO(0),fechaISO(1),fechaISO(2)];
-      const cargados=[];
-      for(const f of fechas){
-        try{
-          const url='https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d='+f+'&s=Soccer';
-          const res=await fetch(url);
-          const data=await res.json();
-          if(data && data.events){
-            data.events.slice(0,12).forEach(e=>{
-              cargados.push({
-                local:e.strHomeTeam || 'Equipo local',
-                visita:e.strAwayTeam || 'Equipo visitante',
-                liga:e.strLeague || 'Liga',
-                hora:e.strTime ? e.strTime.substring(0,5) : 'Por confirmar',
-                fecha:f,
-                dia:etiquetaDia(f)
-              });
-            });
-          }
-        }catch(error){console.log('No se pudo cargar '+f,error)}
-      }
-      partidos = cargados.length ? cargados : partidosRespaldo();
-      renderPartidos();
-    }
-
-    function partidosRespaldo(){
-      return [
-        {local:'España',visita:'Italia',liga:'Partido internacional',hora:'14:00',fecha:fechaISO(0),dia:'hoy'},
-        {local:'Argentina',visita:'Colombia',liga:'Eliminatorias / amistoso',hora:'19:00',fecha:fechaISO(0),dia:'hoy'},
-        {local:'Francia',visita:'Alemania',liga:'Partido internacional',hora:'15:45',fecha:fechaISO(1),dia:'manana'},
-        {local:'Brasil',visita:'Uruguay',liga:'Sudamérica',hora:'20:00',fecha:fechaISO(1),dia:'manana'},
-        {local:'Portugal',visita:'Países Bajos',liga:'Europa',hora:'16:00',fecha:fechaISO(2),dia:'pasado'},
-        {local:'Inglaterra',visita:'Bélgica',liga:'Europa',hora:'17:30',fecha:fechaISO(2),dia:'pasado'}
-      ];
-    }
-
-    function renderPartidos(){
-      const cont=document.getElementById('listaPartidos');
-      const estado=document.getElementById('estadoCarga');
-      const lista=partidos.filter(p=>filtroActual==='todos' || p.dia===filtroActual).slice(0,18);
-      estado.style.display='none';
-      cont.innerHTML='';
-      if(!lista.length){
-        cont.innerHTML='<p class="loading">No hay partidos cargados para este día.</p>';
-        return;
-      }
-      lista.forEach(p=>{
-        cont.innerHTML += `
-          <div class="match">
-            <div class="league">${p.liga}</div>
-            <h3>${p.local} vs ${p.visita}</h3>
-            <p>${nombreDia(p.dia)} · ${p.fecha} · ${p.hora}</p>
-            <button onclick="seleccionarPartido('${limpiar(p.local)}','${limpiar(p.visita)}')">Analizar este partido</button>
-          </div>`;
-      });
-    }
-
-    function limpiar(t){return String(t).replace(/'/g,'').replace(/"/g,'')}
-
-    function filtrarDia(dia,btn){
-      filtroActual=dia;
-      document.querySelectorAll('.pill').forEach(b=>b.classList.remove('active'));
-      btn.classList.add('active');
-      renderPartidos();
-    }
-
-    function seleccionarPartido(local,visita){
-      document.getElementById('local').value=local;
-      document.getElementById('visita').value=visita;
-      analizar();
-      window.scrollTo({top:document.querySelector('.grid').offsetTop-10,behavior:'smooth'});
-    }
-
-    function analizar(){
-      const local=document.getElementById('local').value || 'Equipo local';
-      const visita=document.getElementById('visita').value || 'Equipo visitante';
-      document.getElementById('nombreLocal').innerText=local;
-      document.getElementById('nombreVisita').innerText=visita;
-      document.getElementById('mejorForma').innerText=local;
-      document.getElementById('recomendado').innerText=local;
-      const localProb=Math.floor(Math.random()*16)+52;
-      const visitaProb=Math.floor(Math.random()*12)+45;
-      const empateProb=Math.floor(Math.random()*12)+18;
-      document.getElementById('pLocal').innerText=localProb+'%';
-      document.getElementById('pVisita').innerText=visitaProb+'%';
-      document.getElementById('pEmpate').innerText=empateProb+'%';
-      document.getElementById('ganadorProb').innerText=localProb+'% de probabilidad';
-      document.getElementById('textoGanador').innerText=local+' aparece como opción recomendada por mejor forma reciente y ventaja estimada.';
-    }
-
-    cargarPartidos();
-  </script>
+<div class="app">
+<header class="top"><div class="topline"><div class="brand"><div class="logo">RP</div><div><h1>Roprost Predict</h1><p>Partidos próximos y análisis deportivo</p></div></div><div class="icons">📅 ⭐ 🔍</div></div><div class="tabs"><button class="tab active">Partidos</button><button class="tab">Análisis</button><button class="tab">Favoritos</button><button class="tab">Estadísticas</button></div></header>
+<nav id="dates" class="dates"></nav>
+<section class="leagues"><div class="league-pill"><div class="circle">⚽</div>Todos</div><div class="league-pill"><div class="circle">🏆</div>Champions</div><div class="league-pill"><div class="circle">🌎</div>Mundial</div><div class="league-pill"><div class="circle">🇪🇸</div>LaLiga</div><div class="league-pill"><div class="circle">🏴</div>Premier</div><div class="league-pill"><div class="circle">🇮🇹</div>Serie A</div><div class="league-pill"><div class="circle">🇵🇪</div>Perú</div></section>
+<main class="content">
+<section class="card"><div class="head"><h2>Buscar o analizar partido</h2><span>Manual</span></div><div class="search"><input id="local" value="Real Madrid" placeholder="Equipo local"><input id="visita" value="Manchester City" placeholder="Equipo visitante"><button class="btn" onclick="analizar()">Analizar</button></div></section>
+<section class="card"><div class="head"><h2>📅 Partidos que se vienen</h2><span id="estado">Cargando...</span></div><div id="lista" style="padding:13px"></div><p class="info">Los partidos se cargan por fecha y competición. Si la fuente gratuita no tiene datos para un día, se muestra una lista de ejemplo para que la página no quede vacía.</p></section>
+<section class="selected"><div class="card"><div class="head"><h2>🔥 Partido seleccionado</h2><span>Vista rápida</span></div><div class="game"><div class="teams"><div class="big"><div class="shield">⚪</div><h3 id="nombreLocal">Real Madrid</h3><p class="good">Forma alta</p></div><div class="vs">VS</div><div class="big"><div class="shield">🔵</div><h3 id="nombreVisita">Manchester City</h3><p class="warn">Rival fuerte</p></div></div><div class="bars"><div class="bar"><small>Local</small><strong id="pLocal">57%</strong></div><div class="bar"><small>Empate</small><strong id="pEmpate">23%</strong></div><div class="bar"><small>Visita</small><strong id="pVisita">54%</strong></div></div></div></div><aside class="card"><div class="head"><h2>📊 Forma reciente</h2><span>Resumen</span></div><div class="stats"><div class="stat"><span>Últimos partidos</span><span class="good">13V - 4E - 3D</span></div><div class="stat"><span>Goles promedio</span><span>2.1</span></div><div class="stat"><span>Recibe goles</span><span>0.9</span></div><div class="stat"><span>Confianza</span><span class="good">Alta</span></div><div class="stat"><span>Riesgo</span><span class="warn">Medio</span></div></div></aside></section>
+</main><p class="footer">Roprost Predict © 2026</p></div>
+<script>
+let partidos=[];let fechaSel='';
+function fechaISO(o){const d=new Date();d.setDate(d.getDate()+o);return d.toISOString().split('T')[0]}
+function fechaTexto(f){const d=new Date(f+'T00:00:00');return d.toLocaleDateString('es-PE',{weekday:'short',day:'2-digit',month:'short'}).replace('.','')}
+function etiqueta(o){if(o===0)return 'HOY';if(o===1)return 'MAÑANA';if(o===-1)return 'AYER';return fechaTexto(fechaISO(o)).toUpperCase()}
+function crearFechas(){const bar=document.getElementById('dates');fechaSel=fechaISO(0);[-1,0,1,2,3,4,5].forEach(o=>{const f=fechaISO(o);bar.innerHTML+=`<button class="date ${o===0?'active':''}" onclick="cambiarFecha('${f}',this)"><strong>${etiqueta(o)}</strong><small>${fechaTexto(f)}</small></button>`})}
+async function cargar(){document.getElementById('estado').innerText='Cargando...';const fechas=[-1,0,1,2,3,4,5].map(fechaISO);let arr=[];for(const f of fechas){try{const r=await fetch('https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d='+f+'&s=Soccer');const data=await r.json();if(data&&data.events){data.events.slice(0,35).forEach(e=>arr.push({local:e.strHomeTeam||'Equipo local',visita:e.strAwayTeam||'Equipo visitante',liga:e.strLeague||'Otros partidos',hora:e.strTime?e.strTime.substring(0,5):'P.P.',fecha:f,estado:e.strStatus||'Programado',hb:e.strHomeTeamBadge||'',ab:e.strAwayTeamBadge||''}))}}catch(e){console.log(e)}}partidos=arr.length?arr:respaldo();render()}
+function respaldo(){return[{local:'Real Madrid',visita:'Manchester City',liga:'UEFA Champions League',hora:'15:00',fecha:fechaISO(0),estado:'Programado'},{local:'Barcelona',visita:'Inter',liga:'UEFA Champions League',hora:'17:00',fecha:fechaISO(0),estado:'Programado'},{local:'Arsenal',visita:'Liverpool',liga:'Premier League',hora:'14:30',fecha:fechaISO(0),estado:'Programado'},{local:'PSG',visita:'Bayern München',liga:'UEFA Champions League',hora:'20:00',fecha:fechaISO(1),estado:'Programado'},{local:'Atlético Madrid',visita:'Sevilla',liga:'LaLiga',hora:'16:15',fecha:fechaISO(1),estado:'Programado'},{local:'Juventus',visita:'Napoli',liga:'Serie A',hora:'18:45',fecha:fechaISO(1),estado:'Programado'},{local:'Chelsea',visita:'Tottenham',liga:'Premier League',hora:'13:00',fecha:fechaISO(2),estado:'Programado'}]}
+function cambiarFecha(f,b){fechaSel=f;document.querySelectorAll('.date').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}
+function render(){const cont=document.getElementById('lista');const lista=partidos.filter(p=>p.fecha===fechaSel);document.getElementById('estado').innerText=lista.length+' partidos';cont.innerHTML='';if(!lista.length){cont.innerHTML='<div class="empty">No hay partidos cargados para este día.</div>';return}const g={};lista.forEach(p=>{if(!g[p.liga])g[p.liga]=[];g[p.liga].push(p)});Object.keys(g).sort().forEach(liga=>{const box=document.createElement('div');box.className='competition';box.innerHTML=`<div class="comp-head"><b>🏆 ${liga}</b><small>${g[liga].length} partidos</small></div>`;g[liga].forEach(p=>{box.innerHTML+=`<div class="match" onclick="seleccionar('${limpiar(p.local)}','${limpiar(p.visita)}')"><div class="team">${badge(p.hb)}<span>${p.local}</span></div><div class="time">${p.hora}<small>${p.estado==='Match Finished'?'FINAL':'NO JUG.'}</small></div><div class="team away"><span>${p.visita}</span>${badge(p.ab)}</div><div class="mini">Analizar</div></div>`});cont.appendChild(box)})}
+function badge(u){return u?`<span class="badge"><img src="${u}"></span>`:'<span class="badge">⚽</span>'}
+function limpiar(t){return String(t).replace(/'/g,'').replace(/"/g,'')}
+function seleccionar(l,v){document.getElementById('local').value=l;document.getElementById('visita').value=v;analizar();document.querySelector('.selected').scrollIntoView({behavior:'smooth'})}
+function analizar(){const l=document.getElementById('local').value||'Equipo local';const v=document.getElementById('visita').value||'Equipo visitante';const lp=Math.floor(Math.random()*16)+52;const vp=Math.floor(Math.random()*12)+45;const ep=Math.floor(Math.random()*12)+18;document.getElementById('nombreLocal').innerText=l;document.getElementById('nombreVisita').innerText=v;document.getElementById('pLocal').innerText=lp+'%';document.getElementById('pVisita').innerText=vp+'%';document.getElementById('pEmpate').innerText=ep+'%'}
+crearFechas();cargar();
+</script>
 </body>
 </html>
