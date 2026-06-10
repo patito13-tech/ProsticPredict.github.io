@@ -87,47 +87,66 @@
     </section>`;
   }
 
+  function cardPartido(p, fecha = "") {
+    const idoneo = p.hayValor;
+    const detalle = idoneo
+      ? p.pronosticos.map(pr => `
+          <div class="pron">
+            <span class="pron-check">✅</span>
+            <span class="pron-text">${pr.etiqueta}</span>
+            ${chip(pr.confianza)}
+          </div>`).join("")
+      : `<p class="vacio">⚠️ No se encontraron pronósticos suficientemente seguros para este partido.</p>`;
+
+    return `
+    <article class="match" data-id="${p.id}">
+      <button class="match-head" aria-expanded="false">
+        <div class="match-meta">
+          <span class="match-liga">${p.liga}</span>
+          <span class="match-hora">${p.fecha || fecha} · ${p.hora}</span>
+        </div>
+        <div class="match-teams">
+          <span>${p.local.name}</span>
+          <span class="vs">vs</span>
+          <span>${p.visitante.name}</span>
+        </div>
+        <div class="match-conf">
+          <span class="match-conf-label">Confianza IA</span>
+          ${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}
+          <span class="caret">▾</span>
+        </div>
+      </button>
+      <div class="match-body">
+        <div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>
+        ${detalle}
+      </div>
+    </article>`;
+  }
+
   function renderPartidos(partidos, dia = "manana", fecha = "") {
     const diaTexto = etiquetaDia(dia);
-    const cards = partidos.map((p) => {
-      const idoneo = p.hayValor;
-      const detalle = idoneo
-        ? p.pronosticos.map(pr => `
-            <div class="pron">
-              <span class="pron-check">✅</span>
-              <span class="pron-text">${pr.etiqueta}</span>
-              ${chip(pr.confianza)}
-            </div>`).join("")
-        : `<p class="vacio">⚠️ No se encontraron pronósticos suficientemente seguros para este partido.</p>`;
+    const ordenados = [...partidos].sort((a, b) => {
+      const ligaA = (a.liga || "Sin liga").localeCompare(b.liga || "Sin liga");
+      if (ligaA !== 0) return ligaA;
+      return String(a.hora || "").localeCompare(String(b.hora || ""));
+    });
 
-      return `
-      <article class="match" data-id="${p.id}">
-        <button class="match-head" aria-expanded="false">
-          <div class="match-meta">
-            <span class="match-liga">${p.liga}</span>
-            <span class="match-hora">${p.fecha || fecha} · ${p.hora}</span>
-          </div>
-          <div class="match-teams">
-            <span>${p.local.name}</span>
-            <span class="vs">vs</span>
-            <span>${p.visitante.name}</span>
-          </div>
-          <div class="match-conf">
-            <span class="match-conf-label">Confianza IA</span>
-            ${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}
-            <span class="caret">▾</span>
-          </div>
-        </button>
-        <div class="match-body">
-          <div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>
-          ${detalle}
-        </div>
-      </article>`;
-    }).join("");
+    const grupos = ordenados.reduce((acc, p) => {
+      const liga = p.liga || "Sin liga";
+      if (!acc[liga]) acc[liga] = [];
+      acc[liga].push(p);
+      return acc;
+    }, {});
+
+    const bloquesLiga = Object.keys(grupos).map(liga => `
+      <div class="liga-grupo">
+        <h3 class="liga-titulo">${liga}</h3>
+        <div class="matches">${grupos[liga].map(p => cardPartido(p, fecha)).join("")}</div>
+      </div>`).join("");
 
     return `<section class="bloque">
       <h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>
-      <div class="matches">${cards}</div>
+      ${bloquesLiga}
     </section>`;
   }
 
