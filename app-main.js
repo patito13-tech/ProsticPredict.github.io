@@ -5,7 +5,6 @@
 (() => {
   "use strict";
 
-  // Color de confianza: rojo (70) -> ámbar (82) -> verde (95+)
   function colorConfianza(pct) {
     if (pct >= 90) return "var(--c-exc)";
     if (pct >= 85) return "var(--c-alta)";
@@ -28,7 +27,15 @@
     return dia === "hoy" ? "Hoy" : "Mañana";
   }
 
-  /* ---------- Render: Picks del Día ---------- */
+  function renderSinPartidos(dia = "manana", fecha = "", error = null) {
+    const diaTexto = etiquetaDia(dia);
+    return `<section class="bloque">
+      <h2 class="bloque-titulo"><span class="eyebrow">Datos reales</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>
+      <p class="vacio">⚠️ No se encontraron partidos reales para ${diaTexto} en la API.</p>
+      ${error ? `<p class="vacio">Detalle técnico: ${error}</p>` : ``}
+    </section>`;
+  }
+
   function renderPicks(picks, dia = "manana") {
     const diaTexto = etiquetaDia(dia);
     const diaTitulo = tituloDia(dia);
@@ -57,7 +64,6 @@
     </section>`;
   }
 
-  /* ---------- Render: Top Apuestas ---------- */
   function renderTop(bets, dia = "manana") {
     const diaTexto = etiquetaDia(dia);
     if (!bets.length) {
@@ -81,7 +87,6 @@
     </section>`;
   }
 
-  /* ---------- Render: lista de partidos (acordeón) ---------- */
   function renderPartidos(partidos, dia = "manana", fecha = "") {
     const diaTexto = etiquetaDia(dia);
     const cards = partidos.map((p) => {
@@ -126,7 +131,6 @@
     </section>`;
   }
 
-  /* ---------- Interacción del acordeón ---------- */
   function activarAcordeon() {
     document.querySelectorAll(".match-head").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -137,16 +141,34 @@
     });
   }
 
-  /* ---------- Arranque ---------- */
   async function init() {
     const app = $("#app");
     app.innerHTML = `<div class="loading">Analizando partidos de mañana…</div>`;
 
-    const { partidos, demo, dia, fecha } = await RoprostData.obtenerPartidos();
+    const { partidos, dia, fecha, error } = await RoprostData.obtenerPartidos();
+    const diaTexto = etiquetaDia(dia);
+
+    if (!partidos.length) {
+      app.innerHTML = `
+        <header class="hero">
+          <div class="brand">
+            <span class="brand-dot"></span>
+            <h1>Roprost <span>Predict</span></h1>
+          </div>
+          <p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p>
+        </header>
+        ${renderSinPartidos(dia, fecha, error)}
+        <footer class="pie">
+          <p>Las cifras son <strong>probabilidades estimadas</strong>, no garantías de acierto.</p>
+          <p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p>
+        </footer>
+      `;
+      return;
+    }
+
     const analizados = RoprostEngine.analizarTodos(partidos);
     const picks = RoprostEngine.picksDelDia(analizados);
     const top = RoprostEngine.topApuestas(analizados);
-    const diaTexto = etiquetaDia(dia);
 
     app.innerHTML = `
       <header class="hero">
@@ -155,7 +177,6 @@
           <h1>Roprost <span>Predict</span></h1>
         </div>
         <p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p>
-        ${demo ? `<div class="banner-demo">MODO DEMO · no se encontraron datos reales para ${diaTexto}. Revisa tu API KEY o disponibilidad de APIfootball.</div>` : ``}
       </header>
       ${renderPicks(picks, dia)}
       ${renderTop(top, dia)}
