@@ -27,7 +27,6 @@
 }
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;font-size:14px}
 
-/* HEADER */
 .header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:200}
 .logo{display:flex;align-items:center;gap:10px}
 .logo-icon{width:32px;height:32px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#000}
@@ -38,9 +37,10 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .live-dot{width:8px;height:8px;background:var(--red);border-radius:50%;animation:blink 1s infinite}
 .live-label{font-size:11px;color:var(--red);font-weight:700;letter-spacing:.5px}
 .date-lbl{font-size:11px;color:var(--text3)}
+.refresh-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.3px;transition:all .2s}
+.refresh-btn:hover{border-color:var(--gold);color:var(--gold)}
 @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
 
-/* NAV TABS */
 .nav{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 20px;gap:2px}
 .nav::-webkit-scrollbar{height:2px}
 .nav::-webkit-scrollbar-thumb{background:var(--border2)}
@@ -48,18 +48,15 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .nav-tab:hover{color:var(--text)}
 .nav-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
 
-/* LAYOUT */
 .main{max-width:900px;margin:0 auto;padding:20px 16px}
 .section{display:none}
 .section.active{display:block}
 
-/* SECTION HEADER */
 .sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
 .sec-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px}
 .sec-title::before{content:'';width:3px;height:14px;background:var(--gold);border-radius:2px;display:inline-block}
 .sec-count{font-size:11px;color:var(--text3);background:var(--bg4);padding:2px 8px;border-radius:10px}
 
-/* STATS BAR - dashboard */
 .stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
 .stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
 .stat-box::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:2px 0 0 2px}
@@ -71,33 +68,34 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .stat-lbl{font-size:11px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
 .stat-sub{font-size:11px;margin-top:2px}
 
-/* MATCH CARD */
-.match-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:0;margin-bottom:10px;overflow:hidden;transition:border-color .2s,transform .15s;cursor:pointer}
-.match-card:hover{border-color:var(--border2);transform:translateY(-1px)}
+.match-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;transition:border-color .2s;cursor:default}
+.match-card:hover{border-color:var(--border2)}
+.match-card.live-card{border-color:#3a0000}
 .mc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg4)}
-.mc-league{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600}
+.mc-league{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;display:flex;align-items:center;gap:6px}
+.mc-league img{width:16px;height:16px;object-fit:contain;border-radius:2px}
 .mc-time{font-size:11px;background:var(--bg2);color:var(--text2);padding:3px 9px;border-radius:4px;font-weight:600}
 .mc-live{font-size:11px;background:#1a0000;color:var(--red);padding:3px 9px;border-radius:4px;font-weight:700;animation:blink 2s infinite}
 .mc-body{padding:14px 16px}
 .mc-teams{display:flex;align-items:center;gap:8px;margin-bottom:12px}
-.mc-team{flex:1;font-size:16px;font-weight:700;color:#fff}
-.mc-team.right{text-align:right}
-.mc-center{min-width:72px;text-align:center}
-.mc-score{font-size:22px;font-weight:900;color:#fff;background:var(--bg4);border-radius:8px;padding:4px 10px;letter-spacing:2px}
+.mc-team{flex:1;display:flex;align-items:center;gap:8px}
+.mc-team.right{flex-direction:row-reverse;text-align:right}
+.mc-team img{width:28px;height:28px;object-fit:contain;flex-shrink:0}
+.mc-team-name{font-size:15px;font-weight:700;color:#fff}
+.mc-center{min-width:80px;text-align:center;flex-shrink:0}
+.mc-score{font-size:22px;font-weight:900;color:#fff;background:var(--bg4);border-radius:8px;padding:4px 10px;letter-spacing:2px;display:inline-block}
 .mc-vs{font-size:12px;color:var(--text3);font-weight:600}
 
-/* WIN PROBABILITY BARS */
-.prob-row{display:flex;align-items:center;gap:8px;margin-bottom:10px}
-.prob-label{font-size:11px;color:var(--text3);width:60px;text-align:right}
+.prob-nums{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px}
+.prob-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.prob-label{font-size:11px;color:var(--text3);width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .prob-label.right-lbl{text-align:left}
 .prob-bar-wrap{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
 .prob-bar{height:100%;border-radius:3px;transition:width .5s}
-.prob-bar.home{background:var(--blue2);float:right}
+.prob-bar.home{background:var(--blue2)}
 .prob-bar.draw{background:var(--amber)}
 .prob-bar.away{background:var(--red)}
-.prob-nums{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px}
 
-/* PREDICTIONS */
 .preds{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
 .pred-chip{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px}
 .pred-high{background:#001a00;color:var(--green2);border:1px solid #004400}
@@ -108,28 +106,27 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .pred-dot.a{background:var(--amber)}
 .pred-dot.o{background:#ff6d00}
 
-/* CONFIDENCE BAR */
-.conf-row{display:flex;align-items:center;gap:8px;margin-top:10px}
-.conf-bar-wrap{flex:1;height:4px;background:var(--bg4);border-radius:2px;overflow:hidden}
-.conf-fill{height:100%;border-radius:2px;transition:width .6s}
-.conf-pct{font-size:12px;font-weight:700;min-width:36px;text-align:right}
-
-/* FORM DOTS */
-.form-row{display:flex;align-items:center;gap:5px;margin-top:10px}
-.form-lbl{font-size:10px;color:var(--text3);margin-right:4px;width:28px}
-.form-dot{width:22px;height:22px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.form-row{display:flex;align-items:center;gap:5px;margin-top:8px}
+.form-lbl{font-size:10px;color:var(--text3);margin-right:4px;width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.form-dot{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
 .fd-w{background:#003300;color:var(--green)}
 .fd-d{background:#1a1400;color:var(--amber)}
 .fd-l{background:#1a0000;color:var(--red)}
 
-/* ANALYSIS BOX */
-.analysis-box{background:var(--bg4);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.6;font-style:italic}
+.analysis-box{background:var(--bg4);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.6}
 
-/* PICKS SECTION */
-.picks-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:12px;margin-bottom:20px}
+.events-box{margin-top:12px}
+.event-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)}
+.event-row:last-child{border-bottom:none}
+.event-min{color:var(--gold);font-weight:700;min-width:28px;font-size:11px}
+.event-ico{font-size:14px;min-width:20px;text-align:center}
+.event-player{color:var(--text);flex:1}
+.event-team{color:var(--text3);font-size:11px}
+
+.picks-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:20px}
 .pick-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
 .pick-card.featured{border-color:var(--gold)}
-.pick-card.featured::before{content:'TOP PICK';position:absolute;top:10px;right:-18px;background:var(--gold);color:#000;font-size:9px;font-weight:900;padding:3px 28px;transform:rotate(45deg);letter-spacing:.5px}
+.pick-card.featured::before{content:'TOP';position:absolute;top:10px;right:-14px;background:var(--gold);color:#000;font-size:9px;font-weight:900;padding:3px 24px;transform:rotate(45deg);letter-spacing:.5px}
 .pick-match{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px}
 .pick-market{font-size:12px;color:var(--text3);margin-bottom:10px}
 .pick-prob{font-size:32px;font-weight:900;margin-bottom:4px}
@@ -139,7 +136,6 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .conf-med{color:var(--amber)}
 .conf-low{color:#ff6d00}
 
-/* TOP BETS TABLE */
 .top-bets-list{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden}
 .top-bet-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border);transition:background .15s}
 .top-bet-row:last-child{border-bottom:none}
@@ -152,7 +148,6 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .top-bet-bar{width:100%;height:3px;background:var(--bg4);border-radius:2px;margin-top:6px;overflow:hidden}
 .top-bet-fill{height:100%;border-radius:2px}
 
-/* HISTORY */
 .hist-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
 .hist-stat{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
 .hist-val{font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
@@ -168,32 +163,40 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
 .hist-score{font-size:13px;font-weight:700;color:#fff;background:var(--bg4);padding:3px 10px;border-radius:5px}
 .hist-pred-lbl{font-size:12px;color:var(--text3)}
 
-/* SAFE BANNER */
 .safe-banner{background:linear-gradient(135deg,#001a00,#002a00);border:1px solid #004400;border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px}
-.safe-icon-box{width:44px;height:44px;background:#004400;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.safe-icon-box{width:44px;height:44px;background:#004400;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;font-weight:900;color:var(--green2)}
 .safe-title{font-size:16px;font-weight:700;color:var(--green2);margin-bottom:2px}
 .safe-sub{font-size:12px;color:var(--green)}
 
-/* EMPTY STATE */
-.empty{text-align:center;padding:50px 20px;color:var(--text3);font-size:14px}
+.league-group{margin-bottom:16px}
+.league-group-header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg4);border:1px solid var(--border);border-radius:8px 8px 0 0;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.league-group-header img{width:18px;height:18px;object-fit:contain}
+.league-group-body{border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden}
+.league-group-body .match-card{border-radius:0;border:none;border-bottom:1px solid var(--border);margin-bottom:0}
+.league-group-body .match-card:last-child{border-bottom:none}
 
-/* FOOTER */
+.loading{text-align:center;padding:50px 20px;color:var(--text3)}
+.spin{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:50px 20px;color:var(--text3);font-size:13px}
+.err{text-align:center;padding:30px 20px;color:var(--red);font-size:13px;background:var(--bg3);border-radius:10px;border:1px solid #330000}
+.retry-btn{margin-top:10px;background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:7px 18px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
+.retry-btn:hover{border-color:var(--gold);color:var(--gold)}
+
 .footer{text-align:center;padding:30px 16px;color:var(--text3);font-size:11px;border-top:1px solid var(--border);margin-top:24px}
 .footer strong{color:var(--gold)}
 
-/* RESPONSIVE */
 @media(max-width:560px){
   .stats-bar{grid-template-columns:repeat(2,1fr)}
-  .mc-team{font-size:13px}
+  .mc-team-name{font-size:13px}
   .mc-score{font-size:18px}
-  .hist-stats{grid-template-columns:repeat(3,1fr)}
   .nav-tab{padding:12px 12px;font-size:11px}
+  .header{padding:0 12px}
 }
 </style>
 </head>
 <body>
 
-<!-- HEADER -->
 <div class="header">
   <div class="logo">
     <div class="logo-icon">RP</div>
@@ -206,17 +209,17 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
     <div class="live-dot"></div>
     <span class="live-label">EN VIVO</span>
     <span class="date-lbl" id="current-date"></span>
+    <button class="refresh-btn" onclick="reloadAll()">&#8635; Actualizar</button>
   </div>
 </div>
 
-<!-- NAV -->
 <div class="nav">
   <div class="nav-tab active" onclick="showTab('dashboard',this)">Dashboard</div>
   <div class="nav-tab" onclick="showTab('hoy',this)">Hoy</div>
-  <div class="nav-tab" onclick="showTab('manana',this)">Manana</div>
+  <div class="nav-tab" onclick="showTab('manana',this)">Ma&ntilde;ana</div>
   <div class="nav-tab" onclick="showTab('vivo',this)">En Vivo</div>
   <div class="nav-tab" onclick="showTab('seguros',this)">+70% Seguros</div>
-  <div class="nav-tab" onclick="showTab('picks',this)">Picks del Dia</div>
+  <div class="nav-tab" onclick="showTab('picks',this)">Picks del D&iacute;a</div>
   <div class="nav-tab" onclick="showTab('topbets',this)">Top Apuestas</div>
   <div class="nav-tab" onclick="showTab('acertados',this)">Acertados</div>
   <div class="nav-tab" onclick="showTab('perdidos',this)">Perdidos</div>
@@ -228,36 +231,30 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
   <div id="sec-dashboard" class="section active">
     <div class="stats-bar">
       <div class="stat-box s-gold">
-        <div class="stat-val" id="d-total">0</div>
-        <div class="stat-lbl">Pronosticos hoy</div>
+        <div class="stat-val" id="d-total">--</div>
+        <div class="stat-lbl">Pron&oacute;sticos hoy</div>
         <div class="stat-sub" style="color:var(--gold)">Todos los partidos</div>
       </div>
       <div class="stat-box s-green">
-        <div class="stat-val" id="d-seguros">0</div>
+        <div class="stat-val" id="d-seguros">--</div>
         <div class="stat-lbl">Apuestas seguras</div>
         <div class="stat-sub" style="color:var(--green)">+70% confianza</div>
       </div>
       <div class="stat-box s-blue">
-        <div class="stat-val" id="d-precision">0%</div>
-        <div class="stat-lbl">Precision mensual</div>
-        <div class="stat-sub" style="color:var(--blue2)">Este mes</div>
+        <div class="stat-val" id="d-precision">--</div>
+        <div class="stat-lbl">Partidos ma&ntilde;ana</div>
+        <div class="stat-sub" style="color:var(--blue2)">Programados</div>
       </div>
       <div class="stat-box s-red">
-        <div class="stat-val" id="d-vivo">0</div>
+        <div class="stat-val" id="d-vivo">--</div>
         <div class="stat-lbl">En vivo ahora</div>
         <div class="stat-sub" style="color:var(--red)">Partidos activos</div>
       </div>
     </div>
-
-    <div class="sec-head">
-      <div class="sec-title">Picks recomendados hoy</div>
-    </div>
-    <div id="dash-picks"></div>
-
-    <div class="sec-head" style="margin-top:20px">
-      <div class="sec-title">En vivo ahora</div>
-    </div>
-    <div id="dash-vivo"></div>
+    <div class="sec-head"><div class="sec-title">Picks recomendados hoy</div></div>
+    <div id="dash-picks"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+    <div class="sec-head" style="margin-top:20px"><div class="sec-title">En vivo ahora</div></div>
+    <div id="dash-vivo"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
   <!-- HOY -->
@@ -266,463 +263,546 @@ body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-se
       <div class="sec-title">Partidos de hoy</div>
       <div class="sec-count" id="count-hoy"></div>
     </div>
-    <div id="cards-hoy"></div>
+    <div id="cards-hoy"><div class="loading"><div class="spin"></div><br>Cargando partidos...</div></div>
   </div>
 
   <!-- MANANA -->
   <div id="sec-manana" class="section">
     <div class="sec-head">
-      <div class="sec-title">Partidos de manana</div>
+      <div class="sec-title">Partidos de ma&ntilde;ana</div>
       <div class="sec-count" id="count-manana"></div>
     </div>
-    <div id="cards-manana"></div>
+    <div id="cards-manana"><div class="loading"><div class="spin"></div><br>Cargando partidos...</div></div>
   </div>
 
   <!-- EN VIVO -->
   <div id="sec-vivo" class="section">
-    <div class="sec-head">
-      <div class="sec-title">En vivo ahora mismo</div>
-    </div>
-    <div id="cards-vivo"></div>
+    <div class="sec-head"><div class="sec-title">En vivo ahora mismo</div></div>
+    <div id="cards-vivo"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
   <!-- +70% SEGUROS -->
   <div id="sec-seguros" class="section">
     <div class="safe-banner">
-      <div class="safe-icon-box">[+]</div>
+      <div class="safe-icon-box">+70</div>
       <div>
         <div class="safe-title">Apuestas recomendadas</div>
-        <div class="safe-sub">Solo pronosticos con 70% o mas de confianza - menor riesgo</div>
+        <div class="safe-sub">Solo pron&oacute;sticos con 70% o m&aacute;s de confianza</div>
       </div>
     </div>
     <div class="sec-head">
       <div class="sec-title">Apuestas seguras</div>
       <div class="sec-count" id="count-seguros"></div>
     </div>
-    <div id="cards-seguros"></div>
+    <div id="cards-seguros"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
   <!-- PICKS DEL DIA -->
   <div id="sec-picks" class="section">
-    <div class="sec-head">
-      <div class="sec-title">Picks premium del dia</div>
-    </div>
-    <div class="picks-grid" id="picks-grid"></div>
+    <div class="sec-head"><div class="sec-title">Picks premium del d&iacute;a</div></div>
+    <div class="picks-grid" id="picks-grid"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
   <!-- TOP APUESTAS -->
   <div id="sec-topbets" class="section">
     <div class="sec-head">
-      <div class="sec-title">Top apuestas del dia</div>
+      <div class="sec-title">Top apuestas del d&iacute;a</div>
       <div class="sec-count">Ordenadas por probabilidad</div>
     </div>
-    <div class="top-bets-list" id="top-bets-list"></div>
+    <div class="top-bets-list" id="top-bets-list"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
   <!-- ACERTADOS -->
   <div id="sec-acertados" class="section">
     <div class="hist-stats">
-      <div class="hist-stat">
-        <div class="hist-val" style="color:var(--green)" id="stat-won">0</div>
-        <div class="hist-lbl">Acertados</div>
-      </div>
-      <div class="hist-stat">
-        <div class="hist-val" style="color:#fff" id="stat-total">0</div>
-        <div class="hist-lbl">Total</div>
-      </div>
-      <div class="hist-stat">
-        <div class="hist-val" style="color:var(--green)" id="stat-pct">0%</div>
-        <div class="hist-lbl">Precision</div>
-      </div>
+      <div class="hist-stat"><div class="hist-val" style="color:var(--green)" id="stat-won">0</div><div class="hist-lbl">Acertados</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:#fff" id="stat-total">0</div><div class="hist-lbl">Total</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:var(--green)" id="stat-pct">0%</div><div class="hist-lbl">Precisi&oacute;n</div></div>
     </div>
-    <div class="sec-head">
-      <div class="sec-title">Historial de aciertos</div>
-    </div>
-    <div id="cards-acertados"></div>
+    <div class="sec-head"><div class="sec-title">Historial de aciertos</div></div>
+    <div id="cards-acertados"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
   <!-- PERDIDOS -->
   <div id="sec-perdidos" class="section">
     <div class="hist-stats">
-      <div class="hist-stat">
-        <div class="hist-val" style="color:var(--red)" id="stat-lost">0</div>
-        <div class="hist-lbl">Fallados</div>
-      </div>
-      <div class="hist-stat">
-        <div class="hist-val" style="color:#fff" id="stat-total2">0</div>
-        <div class="hist-lbl">Total</div>
-      </div>
-      <div class="hist-stat">
-        <div class="hist-val" style="color:var(--red)" id="stat-fail-pct">0%</div>
-        <div class="hist-lbl">Tasa fallo</div>
-      </div>
+      <div class="hist-stat"><div class="hist-val" style="color:var(--red)" id="stat-lost">0</div><div class="hist-lbl">Fallados</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:#fff" id="stat-total2">0</div><div class="hist-lbl">Total</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:var(--red)" id="stat-fail-pct">0%</div><div class="hist-lbl">Tasa fallo</div></div>
     </div>
-    <div class="sec-head">
-      <div class="sec-title">Pronosticos fallados</div>
-    </div>
-    <div id="cards-perdidos"></div>
+    <div class="sec-head"><div class="sec-title">Pron&oacute;sticos fallados</div></div>
+    <div id="cards-perdidos"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
 </div>
 
 <div class="footer">
-  <strong>Roprost Predict</strong> &mdash; Predicciones inteligentes para apostadores inteligentes &mdash; Solo para entretenimiento
+  <strong>Roprost Predict</strong> &mdash; Predicciones inteligentes &mdash; Solo para entretenimiento
 </div>
 
 <script>
-/* =============================================
-   DATOS - Edita aqui tus partidos y pronosticos
-   ============================================= */
+/* ============================================================
+   CONFIG
+   ============================================================ */
+var API_KEY = 'e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3';
+var API    = 'https://apiv3.apifootball.com/';
 
-var HOY = [
-  {
-    league:"Premier League", time:"14:00",
-    home:"Arsenal", away:"Chelsea",
-    probH:62, probD:20, probA:18,
-    formH:["W","W","D","W","L","W"],
-    formA:["D","L","W","W","D","L"],
-    conf:82,
-    preds:[
-      {text:"Arsenal no pierde (1X)", conf:82, level:"high"},
-      {text:"Mas de 1.5 goles", conf:76, level:"high"},
-      {text:"Ambos marcan", conf:65, level:"med"}
-    ],
-    analysis:"Arsenal llega en excelente momento tras ganar 4 de sus ultimos 5 partidos. Chelsea muestra irregularidad defensiva habiendo recibido goles en 4 de sus ultimos 6 compromisos."
-  },
-  {
-    league:"La Liga", time:"16:30",
-    home:"Real Madrid", away:"Atletico Madrid",
-    probH:52, probD:28, probA:20,
-    formH:["W","W","W","D","W","W"],
-    formA:["W","D","W","L","D","W"],
-    conf:74,
-    preds:[
-      {text:"Menos de 2.5 goles", conf:74, level:"high"},
-      {text:"Real Madrid gana o empata (1X)", conf:70, level:"high"},
-      {text:"Menos de 4.5 corners", conf:58, level:"low"}
-    ],
-    analysis:"El derbi madrileno suele ser un partido muy cerrado. Real Madrid es favorito en casa pero Atletico tiene uno de los mejores registros defensivos de la liga esta temporada."
-  },
-  {
-    league:"Bundesliga", time:"18:00",
-    home:"Bayern Munich", away:"Dortmund",
-    probH:58, probD:22, probA:20,
-    formH:["W","W","W","W","D","W"],
-    formA:["L","W","D","W","L","D"],
-    conf:68,
-    preds:[
-      {text:"Bayern gana", conf:68, level:"med"},
-      {text:"Mas de 2.5 goles", conf:72, level:"high"},
-      {text:"Mas de 8.5 corners", conf:60, level:"low"}
-    ],
-    analysis:"Der Klassiker siempre produce goles. Bayern promedia 2.8 goles por partido en casa esta temporada. Dortmund tiene dificultades defensivas fuera de su estadio."
-  },
-  {
-    league:"Serie A", time:"20:45",
-    home:"Juventus", away:"Inter Milan",
-    probH:35, probD:30, probA:35,
-    formH:["D","W","L","D","W","D"],
-    formA:["W","W","D","W","W","L"],
-    conf:55,
-    preds:[
-      {text:"Ambos marcan", conf:62, level:"med"},
-      {text:"Menos de 3.5 goles", conf:67, level:"med"},
-      {text:"Empate", conf:55, level:"low"}
-    ],
-    analysis:"Partido muy equilibrado entre dos de los mejores equipos de Italia. El historial reciente muestra partidos cerrados con pocos goles entre estos dos rivales."
-  },
-  {
-    league:"Ligue 1", time:"21:00",
-    home:"PSG", away:"Marseille",
-    probH:68, probD:18, probA:14,
-    formH:["W","W","W","W","W","D"],
-    formA:["W","L","W","D","L","W"],
-    conf:78,
-    preds:[
-      {text:"PSG gana", conf:78, level:"high"},
-      {text:"Mas de 2.5 goles", conf:74, level:"high"},
-      {text:"Mas de 3.5 tarjetas", conf:65, level:"med"}
-    ],
-    analysis:"PSG domina ampliamente el clasico frances en casa. El equipo parisino ha ganado sus ultimos 5 encuentros en el Parque de los Principes y llega en su mejor momento."
-  }
-];
-
-var MANANA = [
-  {
-    league:"Premier League", time:"13:30",
-    home:"Liverpool", away:"Man City",
-    probH:40, probD:28, probA:32,
-    formH:["W","W","D","W","W","L"],
-    formA:["W","W","W","D","W","W"],
-    conf:71,
-    preds:[
-      {text:"Ambos marcan", conf:71, level:"high"},
-      {text:"Mas de 2.5 goles", conf:68, level:"med"},
-      {text:"Mas de 9.5 corners", conf:62, level:"med"}
-    ],
-    analysis:"Uno de los grandes duelos de la Premier. Ambos equipos tienen ataques letales y se esperan goles de ambos lados. El historial reciente favorece ligeramente a Man City."
-  },
-  {
-    league:"La Liga", time:"15:00",
-    home:"Barcelona", away:"Sevilla",
-    probH:66, probD:20, probA:14,
-    formH:["W","W","W","W","D","W"],
-    formA:["D","L","D","W","L","D"],
-    conf:85,
-    preds:[
-      {text:"Barcelona gana", conf:85, level:"very-high"},
-      {text:"Mas de 2.5 goles", conf:78, level:"high"},
-      {text:"Barcelona anota primero", conf:74, level:"high"}
-    ],
-    analysis:"Barcelona en casa es una maquina goleadora esta temporada con 3.2 goles de promedio. Sevilla llega en mala forma fuera de casa con apenas 1 victoria en los ultimos 6 partidos."
-  },
-  {
-    league:"Champions League", time:"21:00",
-    home:"Man City", away:"Real Madrid",
-    probH:38, probD:26, probA:36,
-    formH:["W","W","D","W","L","W"],
-    formA:["W","W","W","W","D","W"],
-    conf:58,
-    preds:[
-      {text:"Ambos marcan", conf:70, level:"high"},
-      {text:"Mas de 2.5 goles", conf:65, level:"med"},
-      {text:"Menos de 4.5 goles", conf:60, level:"low"}
-    ],
-    analysis:"Duelo de titanes en la Champions. Ambos equipos son candidatos al titulo y se esperan pocas concesiones. Real Madrid tiene mejor historial en eliminatorias europeas recientes."
-  }
-];
-
-var VIVO = [
-  {
-    league:"Premier League", time:"65'",
-    home:"Tottenham", away:"Newcastle",
-    score:"1 - 1",
-    probH:38, probD:35, probA:27,
-    conf:77,
-    preds:[
-      {text:"Empate al final", conf:77, level:"high"},
-      {text:"Mas de 2.5 goles", conf:72, level:"high"}
-    ],
-    formH:["W","D","W","L","D","W"],
-    formA:["D","W","D","W","W","D"],
-    analysis:"Partido muy parejo en el primer tiempo. Con el empate actual, las probabilidades favorecen que el marcador no cambie en la segunda mitad."
-  },
-  {
-    league:"La Liga", time:"43'",
-    home:"Valencia", away:"Betis",
-    score:"0 - 0",
-    probH:42, probD:38, probA:20,
-    conf:65,
-    preds:[
-      {text:"Menos de 2.5 goles", conf:68, level:"med"},
-      {text:"Empate al descanso", conf:65, level:"med"}
-    ],
-    formH:["D","L","D","W","D","L"],
-    formA:["W","D","L","D","W","D"],
-    analysis:"Partido defensivo en Valencia. Ninguno de los dos equipos ha generado ocasiones claras hasta el momento. El partido apunta a pocos goles."
-  }
-];
-
-var PICKS = [
-  {match:"Barcelona vs Sevilla", market:"Barcelona gana", prob:85, level:"very-high", featured:true},
-  {match:"PSG vs Marseille", market:"PSG gana", prob:78, level:"high", featured:false},
-  {match:"Arsenal vs Chelsea", market:"Arsenal no pierde (1X)", prob:82, level:"high", featured:false},
-  {match:"Liverpool vs Man City", market:"Ambos marcan", prob:71, level:"high", featured:false},
-  {match:"Bayern vs Dortmund", market:"Mas de 2.5 goles", prob:72, level:"high", featured:false},
-  {match:"Real Madrid vs Atletico", market:"Menos de 2.5 goles", prob:74, level:"high", featured:false}
-];
-
-var TOPBETS = [
-  {match:"Barcelona vs Sevilla", market:"Barcelona gana", prob:85},
-  {match:"Arsenal vs Chelsea", market:"Arsenal no pierde (1X)", prob:82},
-  {match:"PSG vs Marseille", market:"PSG gana", prob:78},
-  {match:"Bayern vs Dortmund", market:"Mas de 2.5 goles", prob:72},
-  {match:"Liverpool vs Man City", market:"Ambos marcan", prob:71},
-  {match:"Real Madrid vs Atletico", market:"Menos de 2.5 goles", prob:74},
-  {match:"Man City vs Real Madrid", market:"Ambos marcan", prob:70},
-  {match:"Arsenal vs Chelsea", market:"Mas de 1.5 goles", prob:76}
-];
-
-var ACERTADOS = [
-  {league:"Premier League", date:"09 Jun", home:"Man United", away:"West Ham", pred:"Man United gana", result:"2 - 0"},
-  {league:"La Liga", date:"09 Jun", home:"Real Madrid", away:"Villarreal", pred:"Mas de 2.5 goles", result:"3 - 1"},
-  {league:"Bundesliga", date:"08 Jun", home:"Bayern", away:"Freiburg", pred:"Bayern gana", result:"4 - 0"},
-  {league:"Serie A", date:"08 Jun", home:"AC Milan", away:"Roma", pred:"Ambos marcan", result:"2 - 1"},
-  {league:"Ligue 1", date:"07 Jun", home:"PSG", away:"Lyon", pred:"PSG gana", result:"3 - 0"},
-  {league:"Premier League", date:"06 Jun", home:"Chelsea", away:"Arsenal", pred:"Menos de 2.5 goles", result:"1 - 0"},
-  {league:"Champions", date:"05 Jun", home:"Barcelona", away:"Inter", pred:"Barcelona no pierde", result:"2 - 2"}
-];
-
-var PERDIDOS = [
-  {league:"Premier League", date:"08 Jun", home:"Everton", away:"Brentford", pred:"Empate", result:"2 - 1"},
-  {league:"La Liga", date:"07 Jun", home:"Atletico", away:"Girona", pred:"Menos de 2.5 goles", result:"3 - 2"},
-  {league:"Champions", date:"06 Jun", home:"Bayern", away:"PSG", pred:"Bayern gana", result:"1 - 2"}
-];
-
-/* =============================================
-   FUNCIONES DE RENDER
-   ============================================= */
-
-function confColor(c){return c>=75?"var(--green)":c>=60?"var(--amber)":"#ff6d00"}
-function confClass(l){
-  if(l==="very-high")return "pred-high conf-very-high";
-  if(l==="high")return "pred-high conf-high";
-  if(l==="med")return "pred-med conf-med";
-  return "pred-low conf-low";
+/* ============================================================
+   UTILS
+   ============================================================ */
+function fmtDate(d){
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
 }
-function confLabel(l){
-  if(l==="very-high")return "Muy Alta";
-  if(l==="high")return "Alta";
-  if(l==="med")return "Media";
-  return "Baja";
+function today(){ return fmtDate(new Date()); }
+function tomorrow(){
+  var d=new Date(); d.setDate(d.getDate()+1); return fmtDate(d);
 }
-function formDot(r){
-  if(r==="W")return '<div class="form-dot fd-w">V</div>';
-  if(r==="D")return '<div class="form-dot fd-d">E</div>';
-  return '<div class="form-dot fd-l">D</div>';
+function yesterday(){
+  var d=new Date(); d.setDate(d.getDate()-1); return fmtDate(d);
+}
+function daysAgo(n){
+  var d=new Date(); d.setDate(d.getDate()-n); return fmtDate(d);
 }
 
-function matchCard(m){
-  var scoreEl = m.score
-    ? '<div class="mc-score">'+m.score+'</div>'
-    : '<div class="mc-vs">vs</div>';
-  var timeEl = m.score
-    ? '<span class="mc-live">EN VIVO '+m.time+'</span>'
-    : '<span class="mc-time">'+m.time+'</span>';
+async function api(params){
+  params.APIkey = API_KEY;
+  var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&');
+  try {
+    var r = await fetch(API+'?'+qs);
+    var j = await r.json();
+    if(!j || j.error || !Array.isArray(j)) return [];
+    return j;
+  } catch(e){ return []; }
+}
 
-  var predsHtml = m.preds.map(function(p){
-    return '<div class="pred-chip '+confClass(p.level)+'">'
-      +'<span class="pred-dot '+(p.level==="high"||p.level==="very-high"?"g":p.level==="med"?"a":"o")+'"></span>'
+/* ============================================================
+   PROBABILITY CALC FROM ODDS
+   ============================================================ */
+function oddsToProb(o1, ox, o2){
+  var v1=parseFloat(o1)||0, vx=parseFloat(ox)||0, v2=parseFloat(o2)||0;
+  if(v1>0 && vx>0 && v2>0){
+    var i1=1/v1, ix=1/vx, i2=1/v2, tot=i1+ix+i2;
+    return { h:Math.round(i1/tot*100), d:Math.round(ix/tot*100), a:Math.round(i2/tot*100) };
+  }
+  return { h:45, d:27, a:28 };
+}
+
+function confColor(c){ return c>=75?'var(--green)':c>=60?'var(--amber)':'#ff6d00'; }
+function confClass(c){ return c>=75?'pred-high':c>=60?'pred-med':'pred-low'; }
+function confLevel(c){ return c>=75?'high':c>=60?'med':'low'; }
+function confLabel(c){ return c>=75?'Alta':c>=60?'Media':'Baja'; }
+function confColorClass(c){ return c>=75?'conf-high':c>=60?'conf-med':'conf-low'; }
+
+/* ============================================================
+   BUILD PREDICTION CHIPS FROM A MATCH
+   ============================================================ */
+function buildPreds(m){
+  var p = oddsToProb(m.odd_1, m.odd_x, m.odd_2);
+  var chips = [];
+  if(p.h >= 65) chips.push({ text: m.match_hometeam_name+' gana', conf: p.h });
+  if(p.h+p.d >= 70 && p.h < 65) chips.push({ text: m.match_hometeam_name+' no pierde (1X)', conf: p.h+p.d });
+  if(p.a >= 60) chips.push({ text: m.match_awayteam_name+' gana', conf: p.a });
+  if(p.d >= 30) chips.push({ text: 'Empate posible', conf: p.d });
+  // Goal market heuristic from odds
+  var btts = m.odd_bts_yes ? Math.round((1/parseFloat(m.odd_bts_yes))/(1/parseFloat(m.odd_bts_yes)+1/parseFloat(m.odd_bts_no))*100) : 0;
+  if(btts >= 55) chips.push({ text: 'Ambos marcan', conf: btts });
+  var ov25 = m.odd_over_ft_25 ? Math.round((1/parseFloat(m.odd_over_ft_25))/(1/parseFloat(m.odd_over_ft_25)+1/parseFloat(m.odd_under_ft_25))*100) : 0;
+  if(ov25 >= 55) chips.push({ text: 'M&aacute;s de 2.5 goles', conf: ov25 });
+  else if(ov25 > 0 && ov25 < 45) chips.push({ text: 'Menos de 2.5 goles', conf: 100-ov25 });
+  if(!chips.length) chips.push({ text: 'Analiza con cuidado', conf: 50 });
+  return chips;
+}
+
+/* ============================================================
+   RENDER: MATCH CARD
+   ============================================================ */
+function teamImg(badge, name){
+  if(!badge) return '<div style="width:28px;height:28px;border-radius:50%;background:var(--bg4);border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0">'+name.charAt(0)+'</div>';
+  return '<img src="'+badge+'" width="28" height="28" style="object-fit:contain;flex-shrink:0" onerror="this.style.display=\'none\'" loading="lazy">';
+}
+
+function matchCard(m, showEvents){
+  var isLive = m.match_live==='1';
+  var hasScore = m.match_hometeam_score!=='' && m.match_hometeam_score!=null;
+  var p = oddsToProb(m.odd_1, m.odd_x, m.odd_2);
+  var preds = buildPreds(m);
+
+  var timeEl = isLive
+    ? '<span class="mc-live">EN VIVO '+m.match_status+"'"+'</span>'
+    : '<span class="mc-time">'+m.match_time+'</span>';
+
+  var leagueLogo = m.league_logo
+    ? '<img src="'+m.league_logo+'" width="16" height="16" style="object-fit:contain;border-radius:2px;flex-shrink:0" onerror="this.style.display=\'none\'" loading="lazy">'
+    : '';
+
+  var scoreEl = hasScore
+    ? '<span class="mc-score">'+(isLive?'<span style="color:var(--red)">':'')+m.match_hometeam_score+' - '+m.match_awayteam_score+(isLive?'</span>':'')+'</span>'
+    : '<span class="mc-vs">vs</span>';
+
+  // Form strings
+  var fh = (m.team_home_form||'').replace(/,/g,'').split('').slice(0,6);
+  var fa = (m.team_away_form||'').replace(/,/g,'').split('').slice(0,6);
+  var formHtml = '';
+  if(fh.length||fa.length){
+    var mapDot = function(r){ if(r==='W')return '<div class="form-dot fd-w">V</div>'; if(r==='D')return '<div class="form-dot fd-d">E</div>'; if(r==='L')return '<div class="form-dot fd-l">D</div>'; return ''; };
+    formHtml = '<div class="form-row"><span class="form-lbl">'+m.match_hometeam_name.split(' ')[0]+'</span>'+fh.map(mapDot).join('')+'</div>'
+      +'<div class="form-row"><span class="form-lbl">'+m.match_awayteam_name.split(' ')[0]+'</span>'+fa.map(mapDot).join('')+'</div>';
+  }
+
+  // Events (goals)
+  var eventsHtml = '';
+  if(showEvents && m.goalscorer && m.goalscorer.length){
+    var rows = m.goalscorer.map(function(g){
+      var player = g.home_scorer || g.away_scorer || '';
+      var team = g.home_scorer ? m.match_hometeam_name : m.match_awayteam_name;
+      return '<div class="event-row"><span class="event-min">'+g.time_elapsed+"'</span><span class='event-ico'>&#9917;</span><span class='event-player'>"+player+'</span><span class="event-team">'+team+'</span></div>';
+    }).join('');
+    eventsHtml = '<div class="events-box">'+rows+'</div>';
+  }
+
+  var predsHtml = preds.slice(0,3).map(function(p){
+    return '<div class="pred-chip '+confClass(p.conf)+'">'
+      +'<span class="pred-dot '+(p.conf>=70?'g':p.conf>=55?'a':'o')+'"></span>'
       +p.text+' &mdash; '+p.conf+'%'
       +'</div>';
   }).join('');
 
-  var formHtml = '';
-  if(m.formH && m.formA){
-    formHtml = '<div class="form-row"><span class="form-lbl">'+m.home.split(' ')[0]+'</span>'+m.formH.map(formDot).join('')+'</div>'
-      +'<div class="form-row"><span class="form-lbl">'+m.away.split(' ')[0]+'</span>'+m.formA.map(formDot).join('')+'</div>';
-  }
-
-  var analysisHtml = m.analysis ? '<div class="analysis-box">'+m.analysis+'</div>' : '';
-
-  return '<div class="match-card">'
-    +'<div class="mc-header"><span class="mc-league">'+m.league+'</span>'+timeEl+'</div>'
+  return '<div class="match-card'+(isLive?' live-card':'')+'">'
+    +'<div class="mc-header"><span class="mc-league">'+leagueLogo+m.league_name+'</span>'+timeEl+'</div>'
     +'<div class="mc-body">'
-    +'<div class="mc-teams"><div class="mc-team">'+m.home+'</div><div class="mc-center">'+scoreEl+'</div><div class="mc-team right">'+m.away+'</div></div>'
-    +'<div class="prob-nums"><span>'+m.probH+'%</span><span>Empate '+m.probD+'%</span><span>'+m.probA+'%</span></div>'
-    +'<div class="prob-row"><span class="prob-label">'+m.home.split(' ')[0]+'</span><div class="prob-bar-wrap"><div class="prob-bar home" style="width:'+m.probH+'%"></div></div></div>'
-    +'<div class="prob-row"><span class="prob-label">Empate</span><div class="prob-bar-wrap"><div class="prob-bar draw" style="width:'+m.probD+'%"></div></div></div>'
-    +'<div class="prob-row"><span class="prob-label">'+m.away.split(' ')[0]+'</span><div class="prob-bar-wrap"><div class="prob-bar away" style="width:'+m.probA+'%"></div></div></div>'
+    +'<div class="mc-teams">'
+    +'<div class="mc-team">'+teamImg(m.team_home_badge,m.match_hometeam_name)+'<span class="mc-team-name">'+m.match_hometeam_name+'</span></div>'
+    +'<div class="mc-center">'+scoreEl+'</div>'
+    +'<div class="mc-team right"><span class="mc-team-name">'+m.match_awayteam_name+'</span>'+teamImg(m.team_away_badge,m.match_awayteam_name)+'</div>'
+    +'</div>'
+    +'<div class="prob-nums"><span>'+p.h+'%</span><span>Empate '+p.d+'%</span><span>'+p.a+'%</span></div>'
+    +'<div class="prob-row"><span class="prob-label">'+m.match_hometeam_name.split(' ')[0]+'</span><div class="prob-bar-wrap"><div class="prob-bar home" style="width:'+p.h+'%"></div></div></div>'
+    +'<div class="prob-row"><span class="prob-label">Empate</span><div class="prob-bar-wrap"><div class="prob-bar draw" style="width:'+p.d+'%"></div></div></div>'
+    +'<div class="prob-row"><span class="prob-label">'+m.match_awayteam_name.split(' ')[0]+'</span><div class="prob-bar-wrap"><div class="prob-bar away" style="width:'+p.a+'%"></div></div></div>'
     +formHtml
     +'<div class="preds">'+predsHtml+'</div>'
-    +analysisHtml
-    +'</div>'
+    +eventsHtml
+    +'</div></div>';
+}
+
+/* grouped by league */
+function renderGroups(matches, showEvents){
+  if(!matches.length) return '<div class="empty">No hay partidos disponibles</div>';
+  var groups={};
+  matches.forEach(function(m){
+    var k=m.league_id+'_'+m.league_name;
+    if(!groups[k]) groups[k]={name:m.league_name,logo:m.league_logo,matches:[]};
+    groups[k].matches.push(m);
+  });
+  return Object.values(groups).map(function(g){
+    var logo = g.logo ? '<img src="'+g.logo+'" width="18" height="18" style="object-fit:contain" onerror="this.style.display=\'none\'" loading="lazy">' : '';
+    return '<div class="league-group">'
+      +'<div class="league-group-header">'+logo+g.name+' <span style="color:var(--text3);font-weight:400;margin-left:4px">('+g.matches.length+')</span></div>'
+      +'<div class="league-group-body">'+g.matches.map(function(m){ return matchCard(m,showEvents); }).join('')+'</div>'
+      +'</div>';
+  }).join('');
+}
+
+/* ============================================================
+   RENDER: PICK CARD
+   ============================================================ */
+function pickCard(m, rank){
+  var p = oddsToProb(m.odd_1, m.odd_x, m.odd_2);
+  var best, bestConf, bestLabel;
+  var preds = buildPreds(m);
+  // Take top pred
+  preds.sort(function(a,b){return b.conf-a.conf;});
+  best = preds[0];
+  bestConf = best.conf;
+  var cc = confColorClass(bestConf);
+  return '<div class="pick-card'+(rank===0?' featured':'')+'">'
+    +'<div class="pick-match">'+m.match_hometeam_name+' vs '+m.match_awayteam_name+'</div>'
+    +'<div class="pick-market">'+best.text+'</div>'
+    +'<div class="pick-prob '+cc+'">'+bestConf+'%</div>'
+    +'<div class="pick-conf-lbl '+cc+'">Confianza: '+confLabel(bestConf)+'</div>'
+    +'<div style="font-size:11px;color:var(--text3);margin-top:6px">'+m.league_name+' &mdash; '+m.match_time+'</div>'
     +'</div>';
 }
 
-function histCard(m, won){
-  return '<div class="hist-card">'
-    +'<div class="hist-top"><span class="hist-meta">'+m.league+' &mdash; '+m.date+'</span>'
-    +'<span class="result-badge '+(won?'badge-won':'badge-lost')+'">'+(won?'Acertado':'Fallado')+'</span></div>'
-    +'<div class="hist-teams"><span class="hist-team">'+m.home+'</span><span class="hist-score">'+m.result+'</span><span class="hist-team" style="text-align:right">'+m.away+'</span></div>'
-    +'<div class="hist-pred-lbl">Pronostico: '+m.pred+'</div>'
-    +'</div>';
-}
-
-function pickCard(p){
-  var cc = p.level==="very-high"?"conf-very-high":p.level==="high"?"conf-high":p.level==="med"?"conf-med":"conf-low";
-  return '<div class="pick-card'+(p.featured?' featured':'')+'">'
-    +'<div class="pick-match">'+p.match+'</div>'
-    +'<div class="pick-market">'+p.market+'</div>'
-    +'<div class="pick-prob '+cc+'">'+p.prob+'%</div>'
-    +'<div class="pick-conf-lbl '+cc+'">Confianza: '+confLabel(p.level)+'</div>'
-    +'</div>';
-}
-
-function topBetRow(b, i){
+/* ============================================================
+   RENDER: TOP BET ROW
+   ============================================================ */
+function topBetRow(item, i){
   return '<div class="top-bet-row">'
     +'<div class="top-bet-num">'+(i+1)+'</div>'
     +'<div class="top-bet-info">'
-    +'<div class="top-bet-match">'+b.match+'</div>'
-    +'<div class="top-bet-market">'+b.market+'</div>'
-    +'<div class="top-bet-bar"><div class="top-bet-fill" style="width:'+b.prob+'%;background:'+confColor(b.prob)+'"></div></div>'
+    +'<div class="top-bet-match">'+item.match+'</div>'
+    +'<div class="top-bet-market">'+item.market+'</div>'
+    +'<div class="top-bet-bar"><div class="top-bet-fill" style="width:'+item.prob+'%;background:'+confColor(item.prob)+'"></div></div>'
     +'</div>'
-    +'<div class="top-bet-prob" style="color:'+confColor(b.prob)+'">'+b.prob+'%</div>'
+    +'<div class="top-bet-prob" style="color:'+confColor(item.prob)+'">'+item.prob+'%</div>'
     +'</div>';
 }
 
-function render(){
-  var now = new Date();
-  var opts = {weekday:'long',year:'numeric',month:'long',day:'numeric'};
-  document.getElementById('current-date').textContent = now.toLocaleDateString('es-ES',opts);
+/* ============================================================
+   RENDER: HISTORY CARD
+   ============================================================ */
+function histCard(m, won){
+  return '<div class="hist-card">'
+    +'<div class="hist-top"><span class="hist-meta">'+m.league_name+' &mdash; '+m.match_date+'</span>'
+    +'<span class="result-badge '+(won?'badge-won':'badge-lost')+'">'+(won?'Acertado':'Fallado')+'</span></div>'
+    +'<div class="hist-teams"><span class="hist-team">'+m.match_hometeam_name+'</span>'
+    +'<span class="hist-score">'+m.match_hometeam_score+' - '+m.match_awayteam_score+'</span>'
+    +'<span class="hist-team" style="text-align:right">'+m.match_awayteam_name+'</span></div>'
+    +'<div class="hist-pred-lbl">Pron&oacute;stico: '+m._pred+'</div>'
+    +'</div>';
+}
 
-  var tomorrow = new Date(now);
-  tomorrow.setDate(tomorrow.getDate()+1);
-  var todayStr = now.toLocaleDateString('es-ES',{day:'numeric',month:'long'});
-  var tomStr   = tomorrow.toLocaleDateString('es-ES',{day:'numeric',month:'long'});
+/* ============================================================
+   ERROR / LOADING
+   ============================================================ */
+function errHtml(id){
+  return '<div class="err">No se pudo conectar con la API.<br>'
+    +'<button class="retry-btn" onclick="loadSection(\''+id+'\')">Reintentar</button></div>';
+}
 
-  // HOY
-  document.getElementById('cards-hoy').innerHTML = HOY.map(matchCard).join('');
-  document.getElementById('count-hoy').textContent = HOY.length+' partidos &mdash; '+todayStr;
+/* ============================================================
+   DATA CACHE
+   ============================================================ */
+var DATA = { hoy:null, manana:null, vivo:null, yesterday:null, twoDaysAgo:null };
 
-  // MANANA
-  document.getElementById('cards-manana').innerHTML = MANANA.map(matchCard).join('');
-  document.getElementById('count-manana').textContent = MANANA.length+' partidos &mdash; '+tomStr;
+async function loadSection(id){
+  if(id==='hoy')      await loadHoy();
+  if(id==='manana')   await loadManana();
+  if(id==='vivo')     await loadVivo();
+  if(id==='seguros')  renderSeguros();
+  if(id==='picks')    renderPicks();
+  if(id==='topbets')  renderTopBets();
+  if(id==='acertados'||id==='perdidos') await loadHistory();
+  if(id==='dashboard') renderDashboard();
+}
 
-  // VIVO
-  document.getElementById('cards-vivo').innerHTML = VIVO.length
-    ? VIVO.map(matchCard).join('')
-    : '<div class="empty">No hay partidos en vivo ahora mismo</div>';
+/* ============================================================
+   LOAD HOY
+   ============================================================ */
+async function loadHoy(){
+  document.getElementById('cards-hoy').innerHTML = '<div class="loading"><div class="spin"></div><br>Cargando partidos de hoy...</div>';
+  var t = today();
+  var data = await api({ action:'get_events', from:t, to:t });
+  DATA.hoy = data;
+  if(!data.length){ document.getElementById('cards-hoy').innerHTML='<div class="empty">Sin partidos hoy</div>'; }
+  else {
+    document.getElementById('cards-hoy').innerHTML = renderGroups(data, true);
+    document.getElementById('count-hoy').textContent = data.length+' partidos';
+  }
+  renderDashboard();
+  renderSeguros();
+  renderPicks();
+  renderTopBets();
+}
 
-  // SEGUROS
-  var allSeguro = HOY.concat(MANANA).filter(function(m){ return m.conf>=70; });
-  document.getElementById('cards-seguros').innerHTML = allSeguro.map(matchCard).join('');
-  document.getElementById('count-seguros').textContent = allSeguro.length+' apuestas recomendadas';
+/* ============================================================
+   LOAD MANANA
+   ============================================================ */
+async function loadManana(){
+  document.getElementById('cards-manana').innerHTML = '<div class="loading"><div class="spin"></div><br>Cargando...</div>';
+  var t = tomorrow();
+  var data = await api({ action:'get_events', from:t, to:t });
+  DATA.manana = data;
+  if(!data.length){ document.getElementById('cards-manana').innerHTML='<div class="empty">Sin partidos ma&ntilde;ana</div>'; }
+  else {
+    document.getElementById('cards-manana').innerHTML = renderGroups(data, false);
+    document.getElementById('count-manana').textContent = data.length+' partidos';
+  }
+  renderDashboard();
+}
 
-  // PICKS
-  document.getElementById('picks-grid').innerHTML = PICKS.map(pickCard).join('');
+/* ============================================================
+   LOAD EN VIVO
+   ============================================================ */
+async function loadVivo(){
+  document.getElementById('cards-vivo').innerHTML = '<div class="loading"><div class="spin"></div><br>Cargando en vivo...</div>';
+  var data = await api({ action:'get_livescore' });
+  DATA.vivo = data;
+  if(!data.length){
+    document.getElementById('cards-vivo').innerHTML = '<div class="empty">No hay partidos en vivo ahora mismo</div>';
+  } else {
+    document.getElementById('cards-vivo').innerHTML = renderGroups(data, true);
+  }
+  renderDashboard();
+}
 
-  // TOP BETS (sorted)
-  var sorted = TOPBETS.slice().sort(function(a,b){return b.prob-a.prob;});
-  document.getElementById('top-bets-list').innerHTML = sorted.map(topBetRow).join('');
+/* ============================================================
+   LOAD HISTORY (ayer + anteayer)
+   ============================================================ */
+async function loadHistory(){
+  var d1 = yesterday();
+  var d2 = daysAgo(2);
+  var d3 = daysAgo(3);
+  var all = await api({ action:'get_events', from:d3, to:d1 });
+  if(!all.length){
+    document.getElementById('cards-acertados').innerHTML='<div class="empty">Sin historial disponible</div>';
+    document.getElementById('cards-perdidos').innerHTML='<div class="empty">Sin historial disponible</div>';
+    return;
+  }
+  // Only finished
+  var finished = all.filter(function(m){ return m.match_status==='Finished'||m.match_status==='FT'||m.match_status==='AET'||m.match_status==='PEN'; });
 
-  // ACERTADOS
-  document.getElementById('cards-acertados').innerHTML = ACERTADOS.map(function(m){return histCard(m,true);}).join('');
-  document.getElementById('cards-perdidos').innerHTML = PERDIDOS.map(function(m){return histCard(m,false);}).join('');
+  // Attach best pred and evaluate
+  var won=[], lost=[];
+  finished.forEach(function(m){
+    var p = oddsToProb(m.odd_1, m.odd_x, m.odd_2);
+    var preds = buildPreds(m);
+    preds.sort(function(a,b){return b.conf-a.conf;});
+    var best = preds[0];
+    m._pred = best.text;
+    var hs = parseInt(m.match_hometeam_score)||0, as = parseInt(m.match_awayteam_score)||0;
+    var actualResult = hs>as?'home':hs<as?'away':'draw';
+    // evaluate: try to match prediction text roughly
+    var predText = best.text.toLowerCase();
+    var correct = false;
+    if(predText.indexOf('no pierde')!==-1||predText.indexOf('(1x)')!==-1){ correct = actualResult==='home'||actualResult==='draw'; }
+    else if(predText.indexOf(m.match_hometeam_name.toLowerCase())!==-1 && predText.indexOf('gana')!==-1){ correct = actualResult==='home'; }
+    else if(predText.indexOf(m.match_awayteam_name.toLowerCase())!==-1 && predText.indexOf('gana')!==-1){ correct = actualResult==='away'; }
+    else if(predText.indexOf('empate')!==-1){ correct = actualResult==='draw'; }
+    else if(predText.indexOf('ambos marcan')!==-1){ correct = hs>0 && as>0; }
+    else if(predText.indexOf('m&aacute;s de 2.5')!==-1){ correct = (hs+as)>2; }
+    else if(predText.indexOf('menos de 2.5')!==-1){ correct = (hs+as)<3; }
+    else { correct = actualResult==='home'; }
+    if(correct) won.push(m); else lost.push(m);
+  });
 
-  var total = ACERTADOS.length + PERDIDOS.length;
-  document.getElementById('stat-won').textContent    = ACERTADOS.length;
-  document.getElementById('stat-total').textContent  = total;
-  document.getElementById('stat-pct').textContent    = Math.round(ACERTADOS.length/total*100)+'%';
-  document.getElementById('stat-lost').textContent   = PERDIDOS.length;
+  document.getElementById('cards-acertados').innerHTML = won.length ? won.map(function(m){return histCard(m,true);}).join('') : '<div class="empty">Sin aciertos recientes</div>';
+  document.getElementById('cards-perdidos').innerHTML  = lost.length ? lost.map(function(m){return histCard(m,false);}).join('') : '<div class="empty">Sin fallos recientes</div>';
+
+  var total = won.length+lost.length;
+  document.getElementById('stat-won').textContent  = won.length;
+  document.getElementById('stat-total').textContent = total;
+  document.getElementById('stat-pct').textContent  = total ? Math.round(won.length/total*100)+'%' : '0%';
+  document.getElementById('stat-lost').textContent = lost.length;
   document.getElementById('stat-total2').textContent = total;
-  document.getElementById('stat-fail-pct').textContent = Math.round(PERDIDOS.length/total*100)+'%';
+  document.getElementById('stat-fail-pct').textContent = total ? Math.round(lost.length/total*100)+'%' : '0%';
+}
 
-  // DASHBOARD
-  var seguros = HOY.concat(MANANA).filter(function(m){return m.conf>=70;});
-  document.getElementById('d-total').textContent   = HOY.length+MANANA.length;
-  document.getElementById('d-seguros').textContent = seguros.length;
-  document.getElementById('d-precision').textContent = Math.round(ACERTADOS.length/total*100)+'%';
-  document.getElementById('d-vivo').textContent    = VIVO.length;
+/* ============================================================
+   RENDER SEGUROS
+   ============================================================ */
+function renderSeguros(){
+  var all = (DATA.hoy||[]).concat(DATA.manana||[]);
+  var seguros = all.filter(function(m){
+    var preds = buildPreds(m);
+    preds.sort(function(a,b){return b.conf-a.conf;});
+    return preds[0].conf >= 70;
+  });
+  document.getElementById('count-seguros').textContent = seguros.length+' apuestas';
+  document.getElementById('cards-seguros').innerHTML = seguros.length
+    ? renderGroups(seguros, false)
+    : '<div class="empty">Sin apuestas con +70% de confianza ahora</div>';
+}
 
-  // Dashboard picks (top 3)
-  var topPicks = PICKS.filter(function(p){return p.prob>=75;}).slice(0,3);
-  document.getElementById('dash-picks').innerHTML = topPicks.map(pickCard).join('');
+/* ============================================================
+   RENDER PICKS
+   ============================================================ */
+function renderPicks(){
+  var all = DATA.hoy||[];
+  var picks = all.slice().sort(function(a,b){
+    var pa=buildPreds(a), pb=buildPreds(b);
+    pa.sort(function(x,y){return y.conf-x.conf;});
+    pb.sort(function(x,y){return y.conf-x.conf;});
+    return pb[0].conf - pa[0].conf;
+  }).slice(0,9);
+  document.getElementById('picks-grid').innerHTML = picks.length
+    ? picks.map(function(m,i){return pickCard(m,i);}).join('')
+    : '<div class="empty">Sin picks disponibles</div>';
+}
 
-  // Dashboard vivo
-  document.getElementById('dash-vivo').innerHTML = VIVO.length
-    ? VIVO.slice(0,2).map(matchCard).join('')
+/* ============================================================
+   RENDER TOP BETS
+   ============================================================ */
+function renderTopBets(){
+  var all = (DATA.hoy||[]).concat(DATA.manana||[]);
+  var bets = [];
+  all.forEach(function(m){
+    var preds = buildPreds(m);
+    preds.forEach(function(p){
+      bets.push({ match:m.match_hometeam_name+' vs '+m.match_awayteam_name, market:p.text, prob:p.conf });
+    });
+  });
+  bets.sort(function(a,b){return b.prob-a.prob;});
+  var top = bets.slice(0,12);
+  document.getElementById('top-bets-list').innerHTML = top.length
+    ? top.map(topBetRow).join('')
+    : '<div class="empty" style="padding:20px">Sin datos disponibles</div>';
+}
+
+/* ============================================================
+   RENDER DASHBOARD
+   ============================================================ */
+function renderDashboard(){
+  var hoy = DATA.hoy||[], manana = DATA.manana||[], vivo = DATA.vivo||[];
+  document.getElementById('d-total').textContent   = hoy.length || '--';
+  document.getElementById('d-vivo').textContent    = vivo.length || '0';
+  document.getElementById('d-precision').textContent = manana.length || '--';
+
+  var seguros = hoy.concat(manana).filter(function(m){
+    var preds = buildPreds(m);
+    preds.sort(function(a,b){return b.conf-a.conf;});
+    return preds[0].conf >= 70;
+  });
+  document.getElementById('d-seguros').textContent = seguros.length || '0';
+
+  // Top picks
+  var picks = hoy.slice().sort(function(a,b){
+    var pa=buildPreds(a)[0], pb=buildPreds(b)[0]; return pb.conf-pa.conf;
+  }).slice(0,3);
+  document.getElementById('dash-picks').innerHTML = picks.length
+    ? '<div class="picks-grid">'+picks.map(function(m,i){return pickCard(m,i);}).join('')+'</div>'
+    : (hoy.length===0 ? '<div class="loading"><div class="spin"></div><br>Cargando...</div>' : '<div class="empty">Sin picks disponibles</div>');
+
+  // Live preview
+  document.getElementById('dash-vivo').innerHTML = vivo.length
+    ? renderGroups(vivo.slice(0,4), true)
     : '<div class="empty">No hay partidos en vivo ahora mismo</div>';
 }
 
+/* ============================================================
+   TABS
+   ============================================================ */
 function showTab(id, el){
   document.querySelectorAll('.section').forEach(function(s){s.classList.remove('active');});
   document.querySelectorAll('.nav-tab').forEach(function(t){t.classList.remove('active');});
   document.getElementById('sec-'+id).classList.add('active');
   el.classList.add('active');
+  // Lazy load on first visit
+  if(id==='manana' && !DATA.manana) loadManana();
+  if(id==='vivo') loadVivo();
+  if(id==='acertados'||id==='perdidos') loadHistory();
+  if(id==='seguros'||id==='picks'||id==='topbets') renderSeguros(),renderPicks(),renderTopBets();
 }
 
-render();
+/* ============================================================
+   RELOAD ALL
+   ============================================================ */
+function reloadAll(){
+  DATA.hoy=null; DATA.manana=null; DATA.vivo=null;
+  loadHoy();
+  loadVivo();
+}
+
+/* ============================================================
+   AUTO-REFRESH every 90 seconds for live data
+   ============================================================ */
+setInterval(function(){
+  loadVivo();
+  if(DATA.hoy) loadHoy(); // refresh today scores too
+}, 90000);
+
+/* ============================================================
+   INIT
+   ============================================================ */
+(function init(){
+  var now = new Date();
+  var opts = {weekday:'long',year:'numeric',month:'long',day:'numeric'};
+  document.getElementById('current-date').textContent = now.toLocaleDateString('es-ES',opts);
+  loadHoy();
+  loadVivo();
+})();
 </script>
 </body>
 </html>
