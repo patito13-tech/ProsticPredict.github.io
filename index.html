@@ -3,815 +3,368 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="description" content="Roprost Predict — Análisis deportivo premium con IA. Solo las apuestas más seguras del día.">
 <title>Roprost Predict</title>
 <style>
-  /* ── TOKENS ── */
-  :root {
-    --bg:       #0b0e14;
-    --surface:  #111520;
-    --card:     #161b28;
-    --border:   #1e2535;
-    --accent:   #00d4ff;
-    --gold:     #f0b429;
-    --green:    #22c55e;
-    --red:      #ef4444;
-    --muted:    #4a5568;
-    --text:     #e2e8f0;
-    --subtext:  #8892a4;
-    --radius:   12px;
-    --font:     'Inter', system-ui, -apple-system, sans-serif;
-  }
-
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-
-  body {
-    background: var(--bg);
-    color: var(--text);
-    font-family: var(--font);
-    font-size: 14px;
-    line-height: 1.5;
-    min-height: 100vh;
-  }
-
-  /* ── HEADER ── */
-  header {
-    background: var(--surface);
-    border-bottom: 1px solid var(--border);
-    padding: 0 16px;
-    position: sticky;
-    top: 0;
-    z-index: 100;
-  }
-
-  .header-inner {
-    max-width: 700px;
-    margin: 0 auto;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    height: 56px;
-  }
-
-  .logo {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: 700;
-    font-size: 16px;
-    letter-spacing: -0.3px;
-  }
-
-  .logo-icon {
-    width: 28px;
-    height: 28px;
-    background: linear-gradient(135deg, var(--accent), #0085ff);
-    border-radius: 6px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-  }
-
-  .logo span { color: var(--accent); }
-
-  .live-badge {
-    background: var(--red);
-    color: #fff;
-    font-size: 10px;
-    font-weight: 700;
-    padding: 2px 6px;
-    border-radius: 4px;
-    letter-spacing: 0.5px;
-    animation: pulse 2s infinite;
-  }
-
-  @keyframes pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.6; }
-  }
-
-  /* ── NAV TABS ── */
-  .nav-tabs {
-    max-width: 700px;
-    margin: 0 auto;
-    display: flex;
-    gap: 4px;
-    padding: 12px 16px 0;
-  }
-
-  .tab {
-    flex: 1;
-    background: none;
-    border: none;
-    color: var(--subtext);
-    font-size: 13px;
-    font-weight: 500;
-    padding: 10px 8px;
-    cursor: pointer;
-    border-bottom: 2px solid transparent;
-    transition: all 0.2s;
-    text-align: center;
-    white-space: nowrap;
-  }
-
-  .tab.active {
-    color: var(--accent);
-    border-bottom-color: var(--accent);
-  }
-
-  .tab:hover:not(.active) { color: var(--text); }
-
-  /* ── MAIN ── */
-  main {
-    max-width: 700px;
-    margin: 0 auto;
-    padding: 16px;
-  }
-
-  /* ── SECTION TITLE ── */
-  .section-title {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-bottom: 12px;
-  }
-
-  .section-title h2 {
-    font-size: 13px;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.8px;
-    color: var(--subtext);
-  }
-
-  .section-title .dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--accent);
-  }
-
-  /* ── PICKS PREMIUM ── */
-  .picks-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    margin-bottom: 28px;
-  }
-
-  .pick-card {
-    background: linear-gradient(135deg, #0d1829 0%, #111829 100%);
-    border: 1px solid #1a2a45;
-    border-radius: var(--radius);
-    padding: 16px;
-    position: relative;
-    overflow: hidden;
-  }
-
-  .pick-card::before {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0;
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent), #0085ff);
-  }
-
-  .pick-card.gold::before {
-    background: linear-gradient(90deg, var(--gold), #ff8c00);
-  }
-
-  .pick-rank {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--accent);
-    letter-spacing: 1px;
-    text-transform: uppercase;
-    margin-bottom: 6px;
-  }
-
-  .pick-card.gold .pick-rank { color: var(--gold); }
-
-  .pick-match {
-    font-size: 15px;
-    font-weight: 600;
-    margin-bottom: 4px;
-  }
-
-  .pick-league {
-    font-size: 11px;
-    color: var(--subtext);
-    margin-bottom: 10px;
-  }
-
-  .pick-bet {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: rgba(0,212,255,0.06);
-    border: 1px solid rgba(0,212,255,0.15);
-    border-radius: 8px;
-    padding: 10px 14px;
-    margin-bottom: 10px;
-  }
-
-  .pick-card.gold .pick-bet {
-    background: rgba(240,180,41,0.06);
-    border-color: rgba(240,180,41,0.15);
-  }
-
-  .pick-bet-name {
-    font-size: 14px;
-    font-weight: 600;
-  }
-
-  .confidence-big {
-    font-size: 22px;
-    font-weight: 800;
-    color: var(--accent);
-    letter-spacing: -0.5px;
-  }
-
-  .pick-card.gold .confidence-big { color: var(--gold); }
-
-  .pick-reason {
-    font-size: 12px;
-    color: var(--subtext);
-    line-height: 1.5;
-  }
-
-  /* ── CONFIDENCE BAR ── */
-  .conf-bar-wrap {
-    margin: 8px 0 4px;
-  }
-
-  .conf-bar-track {
-    height: 3px;
-    background: var(--border);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .conf-bar-fill {
-    height: 100%;
-    border-radius: 2px;
-    background: linear-gradient(90deg, #0085ff, var(--accent));
-    transition: width 0.8s ease;
-  }
-
-  .pick-card.gold .conf-bar-fill {
-    background: linear-gradient(90deg, #ff8c00, var(--gold));
-  }
-
-  /* ── TOP APUESTAS ── */
-  .top-list {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 28px;
-  }
-
-  .top-item {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    padding: 12px 14px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-  }
-
-  .top-num {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    width: 18px;
-    text-align: center;
-    flex-shrink: 0;
-  }
-
-  .top-info { flex: 1; min-width: 0; }
-
-  .top-match {
-    font-size: 13px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .top-bet {
-    font-size: 12px;
-    color: var(--subtext);
-    margin-top: 2px;
-  }
-
-  .conf-pill {
-    font-size: 13px;
-    font-weight: 700;
-    padding: 4px 10px;
-    border-radius: 20px;
-    flex-shrink: 0;
-  }
-
-  .conf-95  { background: rgba(34,197,94,0.15);  color: #22c55e; }
-  .conf-90  { background: rgba(34,197,94,0.12);  color: #4ade80; }
-  .conf-85  { background: rgba(0,212,255,0.12);  color: var(--accent); }
-  .conf-80  { background: rgba(0,133,255,0.12);  color: #60a5fa; }
-  .conf-75  { background: rgba(240,180,41,0.12); color: var(--gold); }
-
-  /* ── PARTIDOS ── */
-  .matches-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-  }
-
-  .match-card {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    overflow: hidden;
-  }
-
-  .match-header {
-    padding: 14px 16px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    transition: background 0.15s;
-    user-select: none;
-  }
-
-  .match-header:hover { background: rgba(255,255,255,0.03); }
-
-  .match-icon {
-    width: 36px;
-    height: 36px;
-    background: var(--border);
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 18px;
-    flex-shrink: 0;
-  }
-
-  .match-info { flex: 1; min-width: 0; }
-
-  .match-teams {
-    font-size: 14px;
-    font-weight: 600;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-  }
-
-  .match-meta {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-top: 3px;
-  }
-
-  .match-league {
-    font-size: 11px;
-    color: var(--subtext);
-  }
-
-  .match-time {
-    font-size: 11px;
-    color: var(--subtext);
-  }
-
-  .meta-sep { color: var(--border); font-size: 10px; }
-
-  .match-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 4px;
-    flex-shrink: 0;
-  }
-
-  .ia-badge {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--accent);
-  }
-
-  .expand-arrow {
-    color: var(--muted);
-    font-size: 10px;
-    transition: transform 0.25s;
-  }
-
-  .expand-arrow.open { transform: rotate(180deg); }
-
-  /* ── ACORDEÓN ── */
-  .match-body {
-    max-height: 0;
-    overflow: hidden;
-    transition: max-height 0.35s ease;
-  }
-
-  .match-body.open { max-height: 500px; }
-
-  .match-body-inner {
-    padding: 0 16px 16px;
-    border-top: 1px solid var(--border);
-  }
-
-  .body-label {
-    font-size: 11px;
-    color: var(--subtext);
-    text-transform: uppercase;
-    letter-spacing: 0.6px;
-    margin: 12px 0 8px;
-  }
-
-  .pred-item {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 9px 0;
-    border-bottom: 1px solid var(--border);
-  }
-
-  .pred-item:last-child { border-bottom: none; }
-
-  .pred-check {
-    color: var(--green);
-    font-size: 14px;
-    flex-shrink: 0;
-  }
-
-  .pred-name {
-    flex: 1;
-    font-size: 13px;
-    font-weight: 500;
-  }
-
-  .pred-pct {
-    font-size: 13px;
-    font-weight: 700;
-  }
-
-  .pct-green { color: var(--green); }
-  .pct-blue  { color: var(--accent); }
-  .pct-gold  { color: var(--gold); }
-
-  /* ── TIPO PARTIDO ── */
-  .match-type-tag {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10px;
-    font-weight: 600;
-    letter-spacing: 0.5px;
-    text-transform: uppercase;
-    padding: 3px 8px;
-    border-radius: 4px;
-    margin-bottom: 6px;
-  }
-
-  .tag-open   { background: rgba(34,197,94,0.1);  color: var(--green); border: 1px solid rgba(34,197,94,0.2); }
-  .tag-closed { background: rgba(240,180,41,0.1); color: var(--gold);  border: 1px solid rgba(240,180,41,0.2); }
-
-  /* ── EMPTY STATE ── */
-  .empty-state {
-    text-align: center;
-    padding: 40px 20px;
-    color: var(--subtext);
-  }
-
-  .empty-state .icon { font-size: 36px; margin-bottom: 12px; }
-  .empty-state p { font-size: 13px; }
-
-  /* ── ESCALA ── */
-  .scale-grid {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    margin-bottom: 28px;
-  }
-
-  .scale-row {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 8px 12px;
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: 8px;
-  }
-
-  .scale-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  .scale-range {
-    font-size: 13px;
-    font-weight: 700;
-    width: 60px;
-    flex-shrink: 0;
-  }
-
-  .scale-label {
-    font-size: 12px;
-    color: var(--subtext);
-  }
-
-  /* ── INFO VIEW ── */
-  .info-section {
-    background: var(--card);
-    border: 1px solid var(--border);
-    border-radius: var(--radius);
-    padding: 18px;
-    margin-bottom: 14px;
-  }
-
-  .info-section h3 {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--accent);
-    margin-bottom: 10px;
-    text-transform: uppercase;
-    letter-spacing: 0.5px;
-  }
-
-  .info-section p, .info-section li {
-    font-size: 13px;
-    color: var(--subtext);
-    line-height: 1.6;
-    margin-bottom: 4px;
-  }
-
-  .info-section ul { padding-left: 16px; }
-
-  /* ── PAGE CONTENT ── */
-  .page { display: none; }
-  .page.active { display: block; }
-
-  /* ── RESPONSIVE ── */
-  @media (min-width: 600px) {
-    .picks-grid { display: grid; grid-template-columns: 1fr 1fr; }
-    .picks-grid .pick-card:first-child { grid-column: 1 / -1; }
-  }
-
-  /* ── LOADING ── */
-  .loading-bar {
-    height: 2px;
-    background: linear-gradient(90deg, var(--accent), #0085ff, var(--accent));
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 1px;
-    margin-bottom: 16px;
-  }
-
-  @keyframes shimmer {
-    0%   { background-position: 200% 0; }
-    100% { background-position: -200% 0; }
-  }
-
-  .skeleton {
-    background: linear-gradient(90deg, var(--card) 25%, var(--border) 50%, var(--card) 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
-    border-radius: 6px;
-  }
-
-  /* ── SCROLLBAR ── */
-  ::-webkit-scrollbar { width: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg); }
-  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0a0a0f;
+  --bg2:#111118;
+  --bg3:#16161f;
+  --bg4:#1c1c28;
+  --gold:#c9a227;
+  --gold2:#f0c040;
+  --blue:#1a4fa0;
+  --blue2:#2563d4;
+  --green:#00c853;
+  --green2:#00e676;
+  --red:#f44336;
+  --amber:#ffab00;
+  --text:#e8e8f0;
+  --text2:#9090a8;
+  --text3:#55556a;
+  --border:#22222f;
+  --border2:#2a2a3a;
+}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',Arial,sans-serif;min-height:100vh;font-size:14px}
+
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 20px;display:flex;align-items:center;justify-content:space-between;height:56px;position:sticky;top:0;z-index:200}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-icon{width:32px;height:32px;background:var(--gold);border-radius:6px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:14px;color:#000}
+.logo-text{font-size:18px;font-weight:700;color:#fff;letter-spacing:-.3px}
+.logo-text span{color:var(--gold)}
+.logo-sub{font-size:10px;color:var(--text3);letter-spacing:.5px;text-transform:uppercase;margin-top:-2px}
+.header-right{display:flex;align-items:center;gap:12px}
+.live-dot{width:8px;height:8px;background:var(--red);border-radius:50%;animation:blink 1s infinite}
+.live-label{font-size:11px;color:var(--red);font-weight:700;letter-spacing:.5px}
+.date-lbl{font-size:11px;color:var(--text3)}
+.refresh-btn{background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:5px 12px;border-radius:6px;cursor:pointer;font-size:11px;font-weight:600;letter-spacing:.3px;transition:all .2s}
+.refresh-btn:hover{border-color:var(--gold);color:var(--gold)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
+
+.nav{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;overflow-x:auto;padding:0 20px;gap:2px}
+.nav::-webkit-scrollbar{height:2px}
+.nav::-webkit-scrollbar-thumb{background:var(--border2)}
+.nav-tab{padding:14px 18px;font-size:12px;font-weight:600;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s;letter-spacing:.3px;text-transform:uppercase}
+.nav-tab:hover{color:var(--text)}
+.nav-tab.active{color:var(--gold);border-bottom-color:var(--gold)}
+
+.main{max-width:900px;margin:0 auto;padding:20px 16px}
+.section{display:none}
+.section.active{display:block}
+
+.sec-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.sec-title{font-size:13px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:1px;display:flex;align-items:center;gap:8px}
+.sec-title::before{content:'';width:3px;height:14px;background:var(--gold);border-radius:2px;display:inline-block}
+.sec-count{font-size:11px;color:var(--text3);background:var(--bg4);padding:2px 8px;border-radius:10px}
+
+.stats-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:20px}
+.stat-box{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px 16px;position:relative;overflow:hidden}
+.stat-box::after{content:'';position:absolute;top:0;left:0;width:3px;height:100%;border-radius:2px 0 0 2px}
+.stat-box.s-gold::after{background:var(--gold)}
+.stat-box.s-green::after{background:var(--green)}
+.stat-box.s-blue::after{background:var(--blue2)}
+.stat-box.s-red::after{background:var(--red)}
+.stat-val{font-size:26px;font-weight:700;color:#fff;line-height:1}
+.stat-lbl{font-size:11px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.stat-sub{font-size:11px;margin-top:2px}
+
+.match-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;margin-bottom:10px;overflow:hidden;transition:border-color .2s;cursor:default}
+.match-card:hover{border-color:var(--border2)}
+.match-card.live-card{border-color:#3a0000}
+.mc-header{display:flex;align-items:center;justify-content:space-between;padding:10px 16px;border-bottom:1px solid var(--border);background:var(--bg4)}
+.mc-league{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.8px;font-weight:600;display:flex;align-items:center;gap:6px}
+.mc-league img{width:16px;height:16px;object-fit:contain;border-radius:2px}
+.mc-time{font-size:11px;background:var(--bg2);color:var(--text2);padding:3px 9px;border-radius:4px;font-weight:600}
+.mc-live{font-size:11px;background:#1a0000;color:var(--red);padding:3px 9px;border-radius:4px;font-weight:700;animation:blink 2s infinite}
+.mc-body{padding:14px 16px}
+.mc-teams{display:flex;align-items:center;gap:8px;margin-bottom:12px}
+.mc-team{flex:1;display:flex;align-items:center;gap:8px}
+.mc-team.right{flex-direction:row-reverse;text-align:right}
+.mc-team img{width:28px;height:28px;object-fit:contain;flex-shrink:0}
+.mc-team-name{font-size:15px;font-weight:700;color:#fff}
+.mc-center{min-width:80px;text-align:center;flex-shrink:0}
+.mc-score{font-size:22px;font-weight:900;color:#fff;background:var(--bg4);border-radius:8px;padding:4px 10px;letter-spacing:2px;display:inline-block}
+.mc-vs{font-size:12px;color:var(--text3);font-weight:600}
+
+.prob-nums{display:flex;justify-content:space-between;font-size:11px;color:var(--text2);font-weight:600;margin-bottom:6px}
+.prob-row{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+.prob-label{font-size:11px;color:var(--text3);width:64px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prob-label.right-lbl{text-align:left}
+.prob-bar-wrap{flex:1;height:6px;background:var(--bg4);border-radius:3px;overflow:hidden}
+.prob-bar{height:100%;border-radius:3px;transition:width .5s}
+.prob-bar.home{background:var(--blue2)}
+.prob-bar.draw{background:var(--amber)}
+.prob-bar.away{background:var(--red)}
+
+.preds{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}
+.pred-chip{padding:5px 12px;border-radius:6px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:5px}
+.pred-high{background:#001a00;color:var(--green2);border:1px solid #004400}
+.pred-med{background:#1a1200;color:var(--amber);border:1px solid #332800}
+.pred-low{background:#1a0a00;color:#ff8c00;border:1px solid #3a1800}
+.pred-dot{width:6px;height:6px;border-radius:50%}
+.pred-dot.g{background:var(--green)}
+.pred-dot.a{background:var(--amber)}
+.pred-dot.o{background:#ff6d00}
+
+.form-row{display:flex;align-items:center;gap:5px;margin-top:8px}
+.form-lbl{font-size:10px;color:var(--text3);margin-right:4px;width:36px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.form-dot{width:20px;height:20px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700}
+.fd-w{background:#003300;color:var(--green)}
+.fd-d{background:#1a1400;color:var(--amber)}
+.fd-l{background:#1a0000;color:var(--red)}
+
+.analysis-box{background:var(--bg4);border-left:3px solid var(--gold);border-radius:0 8px 8px 0;padding:12px 14px;margin-top:12px;font-size:13px;color:var(--text2);line-height:1.6}
+
+.events-box{margin-top:12px}
+.event-row{display:flex;align-items:center;gap:8px;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border)}
+.event-row:last-child{border-bottom:none}
+.event-min{color:var(--gold);font-weight:700;min-width:28px;font-size:11px}
+.event-ico{font-size:14px;min-width:20px;text-align:center}
+.event-player{color:var(--text);flex:1}
+.event-team{color:var(--text3);font-size:11px}
+
+.picks-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:12px;margin-bottom:20px}
+.pick-card{background:var(--bg3);border:1px solid var(--border);border-radius:12px;padding:16px;position:relative;overflow:hidden}
+.pick-card.featured{border-color:var(--gold)}
+.pick-card.featured::before{content:'TOP';position:absolute;top:10px;right:-14px;background:var(--gold);color:#000;font-size:9px;font-weight:900;padding:3px 24px;transform:rotate(45deg);letter-spacing:.5px}
+.pick-match{font-size:13px;font-weight:700;color:#fff;margin-bottom:4px}
+.pick-market{font-size:12px;color:var(--text3);margin-bottom:10px}
+.pick-prob{font-size:32px;font-weight:900;margin-bottom:4px}
+.pick-conf-lbl{font-size:11px;text-transform:uppercase;letter-spacing:.5px;font-weight:700}
+.conf-very-high{color:var(--green2)}
+.conf-high{color:var(--green)}
+.conf-med{color:var(--amber)}
+.conf-low{color:#ff6d00}
+
+.top-bets-list{background:var(--bg3);border:1px solid var(--border);border-radius:12px;overflow:hidden}
+.top-bet-row{display:flex;align-items:center;padding:13px 16px;border-bottom:1px solid var(--border);transition:background .15s}
+.top-bet-row:last-child{border-bottom:none}
+.top-bet-row:hover{background:var(--bg4)}
+.top-bet-num{font-size:20px;font-weight:900;color:var(--border2);min-width:32px}
+.top-bet-info{flex:1}
+.top-bet-match{font-size:13px;font-weight:700;color:#fff}
+.top-bet-market{font-size:12px;color:var(--text3);margin-top:1px}
+.top-bet-prob{font-size:20px;font-weight:900}
+.top-bet-bar{width:100%;height:3px;background:var(--bg4);border-radius:2px;margin-top:6px;overflow:hidden}
+.top-bet-fill{height:100%;border-radius:2px}
+
+.hist-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
+.hist-stat{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:14px;text-align:center}
+.hist-val{font-size:28px;font-weight:700;line-height:1;margin-bottom:4px}
+.hist-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.5px}
+.hist-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:13px 16px;margin-bottom:8px}
+.hist-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
+.hist-meta{font-size:11px;color:var(--text3)}
+.result-badge{font-size:11px;font-weight:700;padding:4px 10px;border-radius:5px}
+.badge-won{color:var(--green2);background:#002200;border:1px solid #004400}
+.badge-lost{color:var(--red);background:#1a0000;border:1px solid #330000}
+.hist-teams{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.hist-team{font-size:14px;font-weight:700;color:#fff}
+.hist-score{font-size:13px;font-weight:700;color:#fff;background:var(--bg4);padding:3px 10px;border-radius:5px}
+.hist-pred-lbl{font-size:12px;color:var(--text3)}
+
+.safe-banner{background:linear-gradient(135deg,#001a00,#002a00);border:1px solid #004400;border-radius:12px;padding:16px 20px;margin-bottom:16px;display:flex;align-items:center;gap:14px}
+.safe-icon-box{width:44px;height:44px;background:#004400;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;font-weight:900;color:var(--green2)}
+.safe-title{font-size:16px;font-weight:700;color:var(--green2);margin-bottom:2px}
+.safe-sub{font-size:12px;color:var(--green)}
+
+.league-group{margin-bottom:16px}
+.league-group-header{display:flex;align-items:center;gap:8px;padding:8px 12px;background:var(--bg4);border:1px solid var(--border);border-radius:8px 8px 0 0;font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.5px}
+.league-group-header img{width:18px;height:18px;object-fit:contain}
+.league-group-body{border:1px solid var(--border);border-top:none;border-radius:0 0 8px 8px;overflow:hidden}
+.league-group-body .match-card{border-radius:0;border:none;border-bottom:1px solid var(--border);margin-bottom:0}
+.league-group-body .match-card:last-child{border-bottom:none}
+
+.loading{text-align:center;padding:50px 20px;color:var(--text3)}
+.spin{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin .7s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{text-align:center;padding:50px 20px;color:var(--text3);font-size:13px}
+.err{text-align:center;padding:30px 20px;color:var(--red);font-size:13px;background:var(--bg3);border-radius:10px;border:1px solid #330000}
+.retry-btn{margin-top:10px;background:var(--bg4);border:1px solid var(--border2);color:var(--text2);padding:7px 18px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600}
+.retry-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+.footer{text-align:center;padding:30px 16px;color:var(--text3);font-size:11px;border-top:1px solid var(--border);margin-top:24px}
+.footer strong{color:var(--gold)}
+
+@media(max-width:560px){
+  .stats-bar{grid-template-columns:repeat(2,1fr)}
+  .mc-team-name{font-size:13px}
+  .mc-score{font-size:18px}
+  .nav-tab{padding:12px 12px;font-size:11px}
+  .header{padding:0 12px}
+}
 </style>
 </head>
 <body>
 
-<header>
-  <div class="header-inner">
-    <div class="logo">
-      <div class="logo-icon">⚡</div>
-      Roprost <span>Predict</span>
+<div class="header">
+  <div class="logo">
+    <div class="logo-icon">RP</div>
+    <div>
+      <div class="logo-text">Roprost <span>Predict</span></div>
+      <div class="logo-sub">Predicciones inteligentes</div>
     </div>
-    <span class="live-badge">LIVE</span>
   </div>
-</header>
-
-<!-- TABS -->
-<div class="nav-tabs">
-  <button class="tab active" onclick="showPage('picks')">🏆 Picks</button>
-  <button class="tab" onclick="showPage('top')">🔥 Top Apuestas</button>
-  <button class="tab" onclick="showPage('partidos')">📋 Partidos</button>
-  <button class="tab" onclick="showPage('info')">ℹ️ Info</button>
+  <div class="header-right">
+    <div class="live-dot"></div>
+    <span class="live-label">EN VIVO</span>
+    <span class="date-lbl" id="current-date"></span>
+    <button class="refresh-btn" onclick="reloadAll()">↻ Actualizar</button>
+  </div>
 </div>
 
-<main>
+<div class="nav">
+  <div class="nav-tab active" onclick="showTab('dashboard',this)">Dashboard</div>
+  <div class="nav-tab" onclick="showTab('hoy',this)">Hoy</div>
+  <div class="nav-tab" onclick="showTab('manana',this)">Mañana</div>
+  <div class="nav-tab" onclick="showTab('vivo',this)">En Vivo</div>
+  <div class="nav-tab" onclick="showTab('seguros',this)">+70% Seguros</div>
+  <div class="nav-tab" onclick="showTab('picks',this)">Picks del Día</div>
+  <div class="nav-tab" onclick="showTab('topbets',this)">Top Apuestas</div>
+  <div class="nav-tab" onclick="showTab('acertados',this)">Acertados</div>
+  <div class="nav-tab" onclick="showTab('perdidos',this)">Perdidos</div>
+</div>
 
-  <!-- ═══════════════ PICKS DEL DÍA ═══════════════ -->
-  <div id="page-picks" class="page active">
-    <br>
-    <div class="section-title">
-      <div class="dot"></div>
-      <h2>Picks del Día — IA</h2>
+<div class="main">
+
+  <!-- DASHBOARD -->
+  <div id="sec-dashboard" class="section active">
+    <div class="stats-bar">
+      <div class="stat-box s-gold">
+        <div class="stat-val" id="d-total">--</div>
+        <div class="stat-lbl">Pronósticos hoy</div>
+        <div class="stat-sub" style="color:var(--gold)">Todos los partidos</div>
+      </div>
+      <div class="stat-box s-green">
+        <div class="stat-val" id="d-seguros">--</div>
+        <div class="stat-lbl">Apuestas seguras</div>
+        <div class="stat-sub" style="color:var(--green)">+70% confianza</div>
+      </div>
+      <div class="stat-box s-blue">
+        <div class="stat-val" id="d-precision">--</div>
+        <div class="stat-lbl">Partidos mañana</div>
+        <div class="stat-sub" style="color:var(--blue2)">Programados</div>
+      </div>
+      <div class="stat-box s-red">
+        <div class="stat-val" id="d-vivo">--</div>
+        <div class="stat-lbl">En vivo ahora</div>
+        <div class="stat-sub" style="color:var(--red)">Partidos activos</div>
+      </div>
     </div>
-
-    <div class="picks-grid">
-
-      <div class="pick-card gold">
-        <div class="pick-rank">🥇 Pick #1 del Día</div>
-        <div class="pick-match">Manchester City vs Burnley</div>
-        <div class="pick-league">Premier League · Hoy 21:00</div>
-        <div class="pick-bet">
-          <div class="pick-bet-name">Más de 0.5 goles</div>
-          <div class="confidence-big">94%</div>
-        </div>
-        <div class="conf-bar-wrap">
-          <div class="conf-bar-track"><div class="conf-bar-fill" style="width:94%"></div></div>
-        </div>
-        <p class="pick-reason">Man City marcó en 19 de sus últimos 20 partidos. Burnley recibió goles en 17 de sus últimos 20 encuentros. Historial H2H: goles en los últimos 8 cruces directos.</p>
-      </div>
-
-      <div class="pick-card">
-        <div class="pick-rank">🥈 Pick #2 del Día</div>
-        <div class="pick-match">Bayern München vs Leipzig</div>
-        <div class="pick-league">Bundesliga · Hoy 18:30</div>
-        <div class="pick-bet">
-          <div class="pick-bet-name">Doble oportunidad (1X)</div>
-          <div class="confidence-big">91%</div>
-        </div>
-        <div class="conf-bar-wrap">
-          <div class="conf-bar-track"><div class="conf-bar-fill" style="width:91%"></div></div>
-        </div>
-        <p class="pick-reason">Bayern invicto en casa en los últimos 14 partidos de Bundesliga. Leipzig ganó solo 2 de sus últimos 10 encuentros como visitante.</p>
-      </div>
-
-      <div class="pick-card">
-        <div class="pick-rank">🥉 Pick #3 del Día</div>
-        <div class="pick-match">Real Madrid vs Getafe</div>
-        <div class="pick-league">La Liga · Hoy 20:00</div>
-        <div class="pick-bet">
-          <div class="pick-bet-name">Más de 6.5 córners</div>
-          <div class="confidence-big">88%</div>
-        </div>
-        <div class="conf-bar-wrap">
-          <div class="conf-bar-track"><div class="conf-bar-fill" style="width:88%"></div></div>
-        </div>
-        <p class="pick-reason">Real Madrid promedia 8.3 córners por partido en casa. El cruce histórico con Getafe en el Bernabéu promedió 9.1 córners en los últimos 5 encuentros.</p>
-      </div>
-
-    </div>
+    <div class="sec-head"><div class="sec-title">Picks recomendados hoy</div></div>
+    <div id="dash-picks"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+    <div class="sec-head" style="margin-top:20px"><div class="sec-title">En vivo ahora</div></div>
+    <div id="dash-vivo"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
   </div>
 
-  <!-- ═══════════════ TOP APUESTAS ═══════════════ -->
-  <div id="page-top" class="page">
-    <br>
-    <div class="section-title">
-      <div class="dot"></div>
-      <h2>Top Apuestas del Día</h2>
+  <!-- HOY -->
+  <div id="sec-hoy" class="section">
+    <div class="sec-head">
+      <div class="sec-title">Partidos de hoy</div>
+      <div class="sec-count" id="count-hoy"></div>
     </div>
-
-    <div class="top-list">
-
-      <div class="top-item">
-        <div class="top-num">#1</div>
-        <div class="top-info">
-          <div class="top-match">Manchester City vs Burnley</div>
-          <div class="top-bet">Más de 0.5 goles · Premier League</div>
-        </div>
-        <div class="conf-pill conf-95">94%</div>
-      </div>
-
-      <div class="top-item">
-        <div class="top-num">#2</div>
-        <div class="top-info">
-          <div class="top-match">Bayern München vs Leipzig</div>
-          <div class="top-bet">Doble oportunidad (1X) · Bundesliga</div>
-        </div>
-        <div class="conf-pill conf-90">91%</div>
-      </div>
-
-      <div class="top-item">
-        <div class="top-num">#3</div>
-        <div class="top-info">
-          <div class="top-match">Real Madrid vs Getafe</div>
-          <div class="top-bet">Más de 6.5 córners · La Liga</div>
-        </div>
-        <div class="conf-pill conf-90">88%</div>
-      </div>
-
-      <div class="top-item">
-        <div class="top-num">#4</div>
-        <div class="top-info">
-          <div class="top-match">PSG vs Lyon</div>
-          <div class="top-bet">Doble oportunidad (1X) · Ligue 1</div>
-        </div>
-        <div class="conf-pill conf-85">87%</div>
-      </div>
-
-      <div class="top-item">
-        <div class="top-num">#5</div>
-        <div class="top-info">
-          <div class="top-match">Inter vs Lecce</div>
-          <div class="top-bet">Más de 1.5 goles · Serie A</div>
-        </div>
-        <div class="conf-pill conf-85">85%</div>
-      </div>
-
-      <div class="top-item">
-        <div class="top-num">#6</div>
-        <div class="top-info">
-          <div class="top-match">Atlético Madrid vs Rayo</div>
-          <div class="top-bet">Menos de 3.5 goles · La Liga</div>
-        </div>
-        <div class="conf-pill conf-80">83%</div>
-      </div>
-
-      <div class="top-item">
-        <div class="top-num">#7</div>
-        <div class="top-info">
-          <div class="top-match">Dortmund vs Freiburg</div>
-          <div class="top-bet">Más de 5.5 córners · Bundesliga</div>
-        </div>
-        <div class="conf-pill conf-80">81%</div>
-      </div>
-
-    </div>
+    <div id="cards-hoy"><div class="loading"><div class="spin"></div><br>Cargando partidos...</div></div>
   </div>
 
-  <!-- ═══════════════ PARTIDOS ═══════════════ -->
-  <div id="page-partidos" class="page">
-    <br>
-    <div class="section-title">
-      <div class="dot"></div>
-      <h2>Partidos de Hoy</h2>
+  <!-- MANANA -->
+  <div id="sec-manana" class="section">
+    <div class="sec-head">
+      <div class="sec-title">Partidos de mañana</div>
+      <div class="sec-count" id="count-manana"></div>
     </div>
+    <div id="cards-manana"><div class="loading"><div class="spin"></div><br>Cargando partidos...</div></div>
+  </div>
 
-    <div class="matches-list">
+  <!-- EN VIVO -->
+  <div id="sec-vivo" class="section">
+    <div class="sec-head"><div class="sec-title">En vivo ahora mismo</div></div>
+    <div id="cards-vivo"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+  </div>
 
-      <!-- Partido 1 -->
-      <div class="match-card">
-        <div class="match-header" onclick="toggleMatch(this)">
-          <div class="match-icon">🏴󠁧󠁢󠁥󠁮󠁧󠁿</div>
-          <div class="match-info">
-            <div class="match-teams">Manchester City vs Burnley</div>
-            <div class="match-meta">
-              <span class="match-league">Premier League</span>
-              <span class="meta-sep">·</span>
-              <span class="match-time">21:00</span>
-            </div>
-          </div>
-          <div class="match-right">
-            <span class="ia-badge">IA 94%</span>
-            <span class="expand-arrow">▼</span>
-          </div>
-        </div>
-        <div class="match-body">
-          <div class="match-body-inner">
-            <div class="match-type-tag tag-open">⚡ Partido Abierto</div>
-            <div class="body-label">Pronósticos aprobados</div>
-            <div class="pred-item">
-              <span class="pred-check">✅</span>
-              <span class="pred-name">Más de 0.5 goles</span>
-              <span class="pred-pct pct-green">94%</span>
-            </div>
-            <div class="pred-item">
-              <span class="pred-check">✅</span>
-              <span class="pred-name">Doble oportunidad local (1X)</span>
-              <span class="pred-pct pct-blue">88%</span>
-            </div>
-            <div class="pred-item">
-              <span class="pred-check">✅</span>
-              <span class="pred-name">Más de 6.5 córners</span>
-              <span class="pred-pct pct-gold">83%</span>
-            </div>
-          </div>
-        </div>
+  <!-- +70% SEGUROS -->
+  <div id="sec-seguros" class="section">
+    <div class="safe-banner">
+      <div class="safe-icon-box">+70</div>
+      <div>
+        <div class="safe-title">Apuestas recomendadas</div>
+        <div class="safe-sub">Solo pronósticos con 70% o más de confianza</div>
       </div>
+    </div>
+    <div class="sec-head">
+      <div class="sec-title">Apuestas seguras</div>
+      <div class="sec-count" id="count-seguros"></div>
+    </div>
+    <div id="cards-seguros"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+  </div>
 
-      <!-- Partido 2 -->
-      <div class="match-card">
-        <div class="match-header" onclick="toggleMatch(this)">
-          <div class="match-icon">🇩🇪</div>
-          <div class="match-info">
-            <div class="match-teams">Bayern München vs RB Leipzig</div>
-            <div class="match-meta">
-              <span class="match-league">Bundesliga</span>
-              <span class="meta-sep">·</span>
-              <span class="match-time">18:30</span>
-            </div>
-          </div>
-          <div class="match-right">
-            <span class="ia-badge">IA 91%</span>
-            <span class="expand-arrow">▼</span>
-          </div>
-        </div>
-        <div class="match-body">
-          <div class="match-body-inner">
-            <div class="match-type-tag tag-open">⚡ Partido Abierto</div>
-            <div class="body-lab
+  <!-- PICKS DEL DIA -->
+  <div id="sec-picks" class="section">
+    <div class="sec-head"><div class="sec-title">Picks premium del día</div></div>
+    <div class="picks-grid" id="picks-grid"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+  </div>
+
+  <!-- TOP APUESTAS -->
+  <div id="sec-topbets" class="section">
+    <div class="sec-head">
+      <div class="sec-title">Top apuestas del día</div>
+      <div class="sec-count">Ordenadas por probabilidad</div>
+    </div>
+    <div class="top-bets-list" id="top-bets-list"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+  </div>
+
+  <!-- ACERTADOS -->
+  <div id="sec-acertados" class="section">
+    <div class="hist-stats">
+      <div class="hist-stat"><div class="hist-val" style="color:var(--green)" id="stat-won">0</div><div class="hist-lbl">Acertados</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:#fff" id="stat-total">0</div><div class="hist-lbl">Total</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:var(--green)" id="stat-pct">0%</div><div class="hist-lbl">Precisión</div></div>
+    </div>
+    <div class="sec-head"><div class="sec-title">Historial de aciertos</div></div>
+    <div id="cards-acertados"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+  </div>
+
+  <!-- PERDIDOS -->
+  <div id="sec-perdidos" class="section">
+    <div class="hist-stats">
+      <div class="hist-stat"><div class="hist-val" style="color:var(--red)" id="stat-lost">0</div><div class="hist-lbl">Fallados</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:#fff" id="stat-total2">0</div><div class="hist-lbl">Total</div></div>
+      <div class="hist-stat"><div class="hist-val" style="color:var(--red)" id="stat-fail-pct">0%</div><div class="hist-lbl">Tasa fallo</div></div>
+    </div>
+    <div class="sec-head"><div class="sec-title">Pronósticos fallados</div></div>
+    <div id="cards-perdidos"><div class="loading"><div class="spin"></div><br>Cargando...</div></div>
+  </div>
+
+</div>
+
+<div class="footer">
+  <strong>Roprost Predict</strong> — Predicciones inteligentes — Solo para entretenimiento
+</div>
+
+<script>
+/* ============================================================
+   CONFIG
+   ============================================================ */
+var API_KEY = 'e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3';
+var API    = 'https://apiv3.apifootball.com/';
+
+/* ============================================================
+   UTILS
+   ============================================================ */
+function fmtDate(d){
+  var y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,'0'), dd=String(d.getDate()).padStart(2,'0');
+  return y+'-'+m+'-'+dd;
+}
+function today(){ return fmtDate(new Date()); }
+function tomorrow(){
+  var d=new Date(); d.setDate(d.getDate()+1); return fmtDate(d);
+}
+function yesterday(){
+  var d=new Date(); d.setDate(d.getDate()-1); return fmtDate(d);
+}
+function daysAgo(n){
+  var d=new Date(); d.setDate(d.getDate()-n); return fmtDate(d);
+}
+
+async function api(params){
+  params.APIkey = API_KEY;
+  var qs = Object.keys(params).map(function(k){ return encodeURIComponent(k)+'='+encodeURIComponent(params[k]); }).join('&
