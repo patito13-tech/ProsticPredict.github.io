@@ -9,12 +9,15 @@ const RoprostData = (() => {
 
   const CONFIG = {
     // Pega aquí tu API KEY de APIfootball.
-    API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3",
+    API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2cf3bb216ca2578938d3",
     API_HOST: "https://apiv3.apifootball.com/",
 
     // En APIfootball los IDs de ligas no son los mismos de API-Sports.
-    // Vacío = trae todos los partidos disponibles del día.
+    // Vacío = trae todos los partidos disponibles del día consultado.
     LIGAS: [],
+
+    // Cambia a "hoy" si quieres volver a ver partidos del día actual.
+    DIA_OBJETIVO: "manana",
 
     USAR_DEMO: false
   };
@@ -25,16 +28,24 @@ const RoprostData = (() => {
      pero para una web pública lo ideal es usar un proxy backend. */
 
   const DEMO = [
-    { id: 1, liga: "Premier League", fecha: "2026-06-10", hora: "19:00", local: { name: "Manchester City", gf: 2.6, ga: 0.8, cf: 7.2, ca: 3.1 }, visitante: { name: "Burnley", gf: 0.9, ga: 2.1, cf: 3.4, ca: 6.0 } },
-    { id: 2, liga: "La Liga", fecha: "2026-06-10", hora: "21:00", local: { name: "Real Madrid", gf: 2.3, ga: 0.9, cf: 6.5, ca: 3.6 }, visitante: { name: "Getafe", gf: 1.0, ga: 1.3, cf: 4.0, ca: 5.2 } },
-    { id: 3, liga: "Serie A", fecha: "2026-06-10", hora: "20:45", local: { name: "Juventus", gf: 1.4, ga: 1.0, cf: 5.1, ca: 4.4 }, visitante: { name: "Torino", gf: 1.1, ga: 1.2, cf: 4.3, ca: 4.8 } },
-    { id: 4, liga: "Premier League", fecha: "2026-06-10", hora: "17:00", local: { name: "Brighton", gf: 1.8, ga: 1.5, cf: 6.0, ca: 5.0 }, visitante: { name: "Tottenham", gf: 2.0, ga: 1.4, cf: 5.5, ca: 5.3 } },
-    { id: 5, liga: "La Liga", fecha: "2026-06-10", hora: "19:30", local: { name: "Atlético Madrid", gf: 1.6, ga: 0.7, cf: 5.0, ca: 3.8 }, visitante: { name: "Cádiz", gf: 0.8, ga: 1.6, cf: 3.5, ca: 5.5 } },
-    { id: 6, liga: "Serie A", fecha: "2026-06-10", hora: "18:00", local: { name: "Inter", gf: 2.4, ga: 0.8, cf: 6.8, ca: 3.5 }, visitante: { name: "Lecce", gf: 0.9, ga: 1.9, cf: 3.8, ca: 6.2 } }
+    { id: 1, liga: "Mundial de Clubes", fecha: "2026-06-11", hora: "17:00", local: { name: "Manchester City", gf: 2.6, ga: 0.8, cf: 7.2, ca: 3.1 }, visitante: { name: "Al Hilal", gf: 1.4, ga: 1.4, cf: 4.8, ca: 5.0 } },
+    { id: 2, liga: "Mundial de Clubes", fecha: "2026-06-11", hora: "20:00", local: { name: "Real Madrid", gf: 2.3, ga: 0.9, cf: 6.5, ca: 3.6 }, visitante: { name: "Monterrey", gf: 1.2, ga: 1.5, cf: 4.1, ca: 5.1 } },
+    { id: 3, liga: "Internacional", fecha: "2026-06-11", hora: "18:30", local: { name: "Inter", gf: 2.4, ga: 0.8, cf: 6.8, ca: 3.5 }, visitante: { name: "Lecce", gf: 0.9, ga: 1.9, cf: 3.8, ca: 6.2 } },
+    { id: 4, liga: "Internacional", fecha: "2026-06-11", hora: "19:30", local: { name: "Atlético Madrid", gf: 1.6, ga: 0.7, cf: 5.0, ca: 3.8 }, visitante: { name: "Cádiz", gf: 0.8, ga: 1.6, cf: 3.5, ca: 5.5 } }
   ];
 
-  function fechaHoy() {
-    return new Date().toISOString().slice(0, 10);
+  function fechaPeru(offsetDias = 0) {
+    const ahora = new Date();
+    const peru = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Lima" }));
+    peru.setDate(peru.getDate() + offsetDias);
+    const yyyy = peru.getFullYear();
+    const mm = String(peru.getMonth() + 1).padStart(2, "0");
+    const dd = String(peru.getDate()).padStart(2, "0");
+    return `${yyyy}-${mm}-${dd}`;
+  }
+
+  function fechaObjetivo() {
+    return CONFIG.DIA_OBJETIVO === "hoy" ? fechaPeru(0) : fechaPeru(1);
   }
 
   function urlAPI(params) {
@@ -97,7 +108,7 @@ const RoprostData = (() => {
   }
 
   async function partidosReales() {
-    const fecha = fechaHoy();
+    const fecha = fechaObjetivo();
     const ligas = CONFIG.LIGAS.length ? CONFIG.LIGAS : [""];
     const partidos = [];
 
@@ -131,16 +142,16 @@ const RoprostData = (() => {
 
   async function obtenerPartidos() {
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
-      return { partidos: DEMO, demo: true };
+      return { partidos: DEMO, demo: true, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
     }
 
     try {
       const partidos = await partidosReales();
-      if (!partidos.length) return { partidos: DEMO, demo: true };
-      return { partidos, demo: false };
+      if (!partidos.length) return { partidos: DEMO, demo: true, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
+      return { partidos, demo: false, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
     } catch (e) {
       console.error("Error con la API, usando demo:", e);
-      return { partidos: DEMO, demo: true, error: e.message };
+      return { partidos: DEMO, demo: true, error: e.message, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
     }
   }
 
