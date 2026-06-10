@@ -12,7 +12,6 @@
 
 const RoprostEngine = (() => {
 
-  /* ---------- Configuración del modelo ---------- */
   const CONFIG = {
     UMBRAL_MINIMO: 70,
     MAX_PRONOSTICOS_PARTIDO: 3,
@@ -26,7 +25,6 @@ const RoprostEngine = (() => {
     LINEAS_CORNERS: [4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5]
   };
 
-  /* ---------- Utilidades de Poisson ---------- */
   function factorial(n) {
     let r = 1;
     for (let i = 2; i <= n; i++) r *= i;
@@ -48,21 +46,18 @@ const RoprostEngine = (() => {
     return 1 - poissonMayorQue(linea, lambda, techo);
   }
 
-  /* ---------- Goles esperados ---------- */
   function golesEsperados(local, visitante) {
     const lambdaLocal = ((local.gf + visitante.ga) / 2) * CONFIG.VENTAJA_LOCAL;
     const lambdaVisitante = ((visitante.gf + local.ga) / 2) * CONFIG.AJUSTE_VISITANTE;
     return { lambdaLocal, lambdaVisitante };
   }
 
-  /* ---------- Córners esperados ---------- */
   function cornersEsperados(local, visitante) {
     const cLocal = (local.cf + visitante.ca) / 2;
     const cVisitante = (visitante.cf + local.ca) / 2;
     return cLocal + cVisitante;
   }
 
-  /* ---------- Matriz de marcadores ---------- */
   function matrizMarcadores(lh, la) {
     const N = CONFIG.MAX_GOLES_MATRIZ;
     let pLocal = 0, pEmpate = 0, pVisita = 0;
@@ -85,7 +80,6 @@ const RoprostEngine = (() => {
     };
   }
 
-  /* ---------- Clasificación del partido ---------- */
   function clasificarPartido(lh, la) {
     const totalEsperado = lh + la;
     if (totalEsperado >= 2.7) return "ABIERTO";
@@ -102,7 +96,6 @@ const RoprostEngine = (() => {
     return "Última opción";
   }
 
-  /* ---------- Selección de líneas ---------- */
   function mejorLineaMayor(lineas, lambda, umbral, tipo) {
     let elegida = null;
     for (const linea of lineas) {
@@ -120,17 +113,15 @@ const RoprostEngine = (() => {
     return null;
   }
 
-  function mejorCornerUnico(overCorners, underCorners, tipoPartido) {
-    if (!overCorners && !underCorners) return null;
-    if (overCorners && !underCorners) return overCorners;
-    if (!overCorners && underCorners) return underCorners;
+  function elegirMercadoUnico(over, under, tipoPartido) {
+    if (!over && !under) return null;
+    if (over && !under) return over;
+    if (!over && under) return under;
 
-    // Regla corregida: nunca mostrar Más y Menos de córners en el mismo partido.
-    // Partido cerrado: preferimos Menos. Partido abierto: preferimos Más.
-    // Si es equilibrado, queda la opción con mayor confianza.
-    if (tipoPartido === "CERRADO") return underCorners;
-    if (tipoPartido === "ABIERTO") return overCorners;
-    return overCorners.prob >= underCorners.prob ? overCorners : underCorners;
+    // Regla clave: nunca mostrar Más y Menos del mismo mercado en un partido.
+    if (tipoPartido === "CERRADO") return under;
+    if (tipoPartido === "ABIERTO") return over;
+    return over.prob >= under.prob ? over : under;
   }
 
   function mejorDobleOportunidad(mercado, local, visitante, umbral) {
@@ -156,7 +147,6 @@ const RoprostEngine = (() => {
     };
   }
 
-  /* ---------- Generar pronósticos de UN partido ---------- */
   function analizarPartido(partido) {
     const { local, visitante } = partido;
     const { lambdaLocal, lambdaVisitante } = golesEsperados(local, visitante);
@@ -168,16 +158,22 @@ const RoprostEngine = (() => {
 
     const candidatos = [];
 
-    // --- GOLES ---
+    // --- GOLES: solo una opción, nunca Más y Menos juntos ---
     const overGoles = mejorLineaMayor(CONFIG.LINEAS_GOLES, lambdaGoles, U, "goles");
     const underGoles = mejorLineaMenor(CONFIG.LINEAS_GOLES, lambdaGoles, U, "goles");
-    if (overGoles) candidatos.push({ ...overGoles, familia: "goles_over", mercado: "Goles" });
-    if (underGoles) candidatos.push({ ...underGoles, familia: "goles_under", mercado: "Goles" });
+    const golesUnico = elegirMercadoUnico(overGoles, underGoles, tipoPartido);
+    if (golesUnico) {
+      candidatos.push({
+        ...golesUnico,
+        familia: golesUnico.etiqueta.startsWith("Más") ? "goles_over" : "goles_under",
+        mercado: "Goles"
+      });
+    }
 
-    // --- CÓRNERS ---
+    // --- CÓRNERS: solo una opción, nunca Más y Menos juntos ---
     const overCorners = mejorLineaMayor(CONFIG.LINEAS_CORNERS, lambdaCorners, U, "córners");
     const underCorners = mejorLineaMenor(CONFIG.LINEAS_CORNERS, lambdaCorners, U, "córners");
-    const cornerUnico = mejorCornerUnico(overCorners, underCorners, tipoPartido);
+    const cornerUnico = elegirMercadoUnico(overCorners, underCorners, tipoPartido);
     if (cornerUnico) {
       candidatos.push({
         ...cornerUnico,
@@ -186,12 +182,12 @@ const RoprostEngine = (() => {
       });
     }
 
-    // --- DOBLE OPORTUNIDAD ---
+    // --- DOBLE OPORTUNIDAD: reemplaza mercados repetidos o contradictorios ---
     const doble = mejorDobleOportunidad(mercado, local, visitante, U);
     if (doble) candidatos.push(doble);
 
     const prioriza = (c) => {
-      if (c.mercado === "Doble oportunidad") return 1;
+      if (c.mercado === "Doble oportunidad") return 2;
       if (tipoPartido === "CERRADO" && (c.familia === "goles_under" || c.familia === "corners_under")) return 1;
       if (tipoPartido === "ABIERTO" && (c.familia === "goles_over" || c.familia === "corners_over")) return 1;
       return 0;
@@ -199,15 +195,13 @@ const RoprostEngine = (() => {
 
     candidatos.sort((a, b) => (b.prob - a.prob) || (prioriza(b) - prioriza(a)));
 
-    // Seguridad extra: máximo una opción de córners por partido.
+    // Seguridad extra: máximo una opción por mercado.
     const seleccionados = [];
-    let tieneCorners = false;
+    const mercadosUsados = new Set();
 
     for (const c of candidatos) {
-      if (c.mercado === "Córners") {
-        if (tieneCorners) continue;
-        tieneCorners = true;
-      }
+      if (mercadosUsados.has(c.mercado)) continue;
+      mercadosUsados.add(c.mercado);
       seleccionados.push(c);
       if (seleccionados.length >= CONFIG.MAX_PRONOSTICOS_PARTIDO) break;
     }
@@ -277,15 +271,15 @@ const RoprostEngine = (() => {
 
   function motivoPick(p, pr) {
     if (pr.mercado === "Goles" && pr.etiqueta.startsWith("Más")) {
-      return `El modelo proyecta ~${p.lambdaGoles} goles totales según el ataque de ${p.local.name} y la defensa de ${p.visitante.name}.`;
+      return `El modelo proyecta ~${p.lambdaGoles} goles totales. Se muestra solo una línea de goles para evitar mercados contradictorios.`;
     }
     if (pr.mercado === "Goles") {
-      return `Encuentro ${p.tipoPartido.toLowerCase()}: el modelo proyecta solo ~${p.lambdaGoles} goles esperados.`;
+      return `Encuentro ${p.tipoPartido.toLowerCase()}: se muestra solo una línea de goles para evitar mercados contradictorios.`;
     }
     if (pr.mercado === "Córners") {
       return `Proyección de ~${p.lambdaCorners} córners totales. Se muestra solo una línea de córners para evitar mercados contradictorios.`;
     }
-    return `Opción más conservadora: ${pr.etiqueta}.`;
+    return `Opción conservadora: ${pr.etiqueta}.`;
   }
 
   return {
