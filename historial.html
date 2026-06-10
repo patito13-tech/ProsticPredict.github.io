@@ -1,0 +1,561 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Roprost Predict · Rentabilidad de Pronósticos</title>
+<style>
+/* ===========================================================
+   ROPROST PREDICT — Historial de Resultados / Rentabilidad
+   Sección autónoma. Todo está dentro de #rp-historial para
+   no chocar con los estilos actuales de tu página.
+   Persistencia real con localStorage (clave: rp_picks_v1).
+   =========================================================== */
+
+#rp-historial{
+  --rp-bg:#0e1116;
+  --rp-surface:#161c24;
+  --rp-surface-2:#1e2530;
+  --rp-border:#2a333f;
+  --rp-text:#e9eef4;
+  --rp-muted:#8c98a7;
+  --rp-faint:#5d6875;
+  --rp-accent:#27d07a;
+  --rp-accent-soft:rgba(39,208,122,.12);
+  --rp-win:#27d07a;
+  --rp-loss:#ef4757;
+  --rp-pend:#f5a623;
+  --rp-radius:16px;
+  --rp-radius-sm:10px;
+
+  color:var(--rp-text);
+  background:var(--rp-bg);
+  font-family:'Inter',-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;
+  font-variant-numeric:tabular-nums;
+  -webkit-font-smoothing:antialiased;
+  padding:clamp(16px,4vw,40px);
+  max-width:1100px;
+  margin:0 auto;
+  box-sizing:border-box;
+}
+#rp-historial *{box-sizing:border-box;}
+
+/* ---------- Encabezado ---------- */
+#rp-historial .rp-head{
+  display:flex;align-items:flex-end;justify-content:space-between;
+  gap:20px;flex-wrap:wrap;margin-bottom:28px;
+}
+#rp-historial .rp-eyebrow{
+  font-size:12px;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--rp-accent);font-weight:600;margin:0 0 6px;
+}
+#rp-historial h1{
+  font-size:clamp(26px,4vw,38px);line-height:1.05;margin:0;font-weight:800;
+  letter-spacing:-.02em;
+}
+#rp-historial h1 span{color:var(--rp-muted);font-weight:500;}
+#rp-historial .rp-sub{color:var(--rp-muted);font-size:14px;margin:8px 0 0;max-width:46ch;}
+
+/* ---------- Tarjeta confiabilidad (signature) ---------- */
+#rp-historial .rp-trust{
+  background:linear-gradient(135deg,var(--rp-surface) 0%,var(--rp-surface-2) 100%);
+  border:1px solid var(--rp-border);border-radius:var(--rp-radius);
+  padding:22px 24px;min-width:230px;text-align:right;position:relative;overflow:hidden;
+}
+#rp-historial .rp-trust::after{
+  content:"";position:absolute;inset:0;
+  background:radial-gradient(circle at 100% 0%,var(--rp-accent-soft),transparent 60%);
+  pointer-events:none;
+}
+#rp-historial .rp-trust .rp-trust-label{font-size:12px;color:var(--rp-muted);text-transform:uppercase;letter-spacing:.1em;}
+#rp-historial .rp-trust .rp-trust-value{font-size:30px;font-weight:800;margin:4px 0 2px;letter-spacing:-.01em;}
+#rp-historial .rp-trust .rp-trust-pct{font-size:13px;color:var(--rp-muted);}
+
+/* ---------- Grid de métricas ---------- */
+#rp-historial .rp-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:14px;margin-bottom:28px;
+}
+#rp-historial .rp-stat{
+  background:var(--rp-surface);border:1px solid var(--rp-border);
+  border-radius:var(--rp-radius-sm);padding:16px 18px;
+}
+#rp-historial .rp-stat .rp-stat-label{font-size:12px;color:var(--rp-muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.06em;}
+#rp-historial .rp-stat .rp-stat-value{font-size:26px;font-weight:800;letter-spacing:-.02em;line-height:1;}
+#rp-historial .rp-stat .rp-stat-foot{font-size:12px;color:var(--rp-faint);margin-top:6px;}
+#rp-historial .rp-stat.win .rp-stat-value{color:var(--rp-win);}
+#rp-historial .rp-stat.loss .rp-stat-value{color:var(--rp-loss);}
+#rp-historial .rp-stat.pend .rp-stat-value{color:var(--rp-pend);}
+
+/* ---------- Secciones ---------- */
+#rp-historial .rp-section-title{
+  font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--rp-muted);
+  font-weight:600;margin:34px 0 14px;display:flex;align-items:center;gap:10px;
+}
+#rp-historial .rp-section-title::before{content:"";width:18px;height:2px;background:var(--rp-accent);border-radius:2px;}
+
+/* ---------- Resumen del día ---------- */
+#rp-historial .rp-daycard{
+  background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:var(--rp-radius);
+  padding:22px 24px;
+}
+#rp-historial .rp-daycard .rp-day-top{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;}
+#rp-historial .rp-daycard .rp-day-date{font-size:18px;font-weight:700;}
+#rp-historial .rp-day-rows{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:14px;}
+#rp-historial .rp-day-rows .rp-dr-label{font-size:12px;color:var(--rp-muted);}
+#rp-historial .rp-day-rows .rp-dr-val{font-size:20px;font-weight:700;margin-top:3px;}
+
+/* ---------- Badges ---------- */
+#rp-historial .rp-badge{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+  padding:5px 11px;border-radius:999px;border:1px solid transparent;white-space:nowrap;
+}
+#rp-historial .rp-badge.muyalta{color:var(--rp-win);background:rgba(39,208,122,.12);border-color:rgba(39,208,122,.35);}
+#rp-historial .rp-badge.alta{color:#5fd6a0;background:rgba(39,208,122,.08);border-color:rgba(39,208,122,.25);}
+#rp-historial .rp-badge.media{color:var(--rp-pend);background:rgba(245,166,35,.1);border-color:rgba(245,166,35,.3);}
+#rp-historial .rp-badge.baja{color:var(--rp-loss);background:rgba(239,71,87,.1);border-color:rgba(239,71,87,.3);}
+#rp-historial .rp-badge.insuf{color:var(--rp-muted);background:var(--rp-surface-2);border-color:var(--rp-border);}
+#rp-historial .rp-badge.pos{color:var(--rp-win);background:rgba(39,208,122,.1);}
+#rp-historial .rp-badge.neg{color:var(--rp-loss);background:rgba(239,71,87,.1);}
+#rp-historial .rp-badge.neu{color:var(--rp-muted);background:var(--rp-surface-2);}
+
+/* ---------- Formulario de pick ---------- */
+#rp-historial .rp-form{
+  background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:var(--rp-radius);
+  padding:20px 22px;display:grid;gap:14px;
+  grid-template-columns:1.4fr 1fr 1.4fr .7fr auto;align-items:end;
+}
+#rp-historial .rp-field{display:flex;flex-direction:column;gap:6px;}
+#rp-historial .rp-field label{font-size:11px;color:var(--rp-muted);text-transform:uppercase;letter-spacing:.06em;}
+#rp-historial .rp-field input,
+#rp-historial .rp-field select{
+  background:var(--rp-bg);border:1px solid var(--rp-border);border-radius:var(--rp-radius-sm);
+  color:var(--rp-text);padding:10px 12px;font-size:14px;font-family:inherit;width:100%;
+}
+#rp-historial .rp-field input:focus,
+#rp-historial .rp-field select:focus{outline:2px solid var(--rp-accent);outline-offset:1px;border-color:transparent;}
+#rp-historial .rp-btn{
+  background:var(--rp-accent);color:#04140b;border:none;border-radius:var(--rp-radius-sm);
+  padding:11px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap;
+  transition:filter .15s ease;
+}
+#rp-historial .rp-btn:hover{filter:brightness(1.08);}
+#rp-historial .rp-btn.ghost{background:transparent;color:var(--rp-muted);border:1px solid var(--rp-border);font-weight:600;}
+#rp-historial .rp-btn.ghost:hover{color:var(--rp-text);border-color:var(--rp-faint);filter:none;}
+
+/* ---------- Lista de picks ---------- */
+#rp-historial .rp-picks{display:flex;flex-direction:column;gap:10px;}
+#rp-historial .rp-pick{
+  background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:var(--rp-radius-sm);
+  padding:14px 16px;display:grid;grid-template-columns:auto 1fr auto auto;gap:14px;align-items:center;
+}
+#rp-historial .rp-pick .rp-state-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0;}
+#rp-historial .rp-pick.ganado{border-left:3px solid var(--rp-win);}
+#rp-historial .rp-pick.perdido{border-left:3px solid var(--rp-loss);}
+#rp-historial .rp-pick.pendiente{border-left:3px solid var(--rp-pend);}
+#rp-historial .rp-pick .rp-state-dot.ganado{background:var(--rp-win);}
+#rp-historial .rp-pick .rp-state-dot.perdido{background:var(--rp-loss);}
+#rp-historial .rp-pick .rp-state-dot.pendiente{background:var(--rp-pend);}
+#rp-historial .rp-pick .rp-pick-main{min-width:0;}
+#rp-historial .rp-pick .rp-pick-match{font-weight:700;font-size:15px;}
+#rp-historial .rp-pick .rp-pick-meta{font-size:12px;color:var(--rp-muted);margin-top:3px;}
+#rp-historial .rp-pick .rp-pick-market{
+  display:inline-block;font-size:11px;padding:2px 8px;border-radius:6px;
+  background:var(--rp-surface-2);border:1px solid var(--rp-border);color:var(--rp-text);margin-right:8px;
+}
+#rp-historial .rp-pick .rp-pick-states{display:flex;gap:6px;}
+#rp-historial .rp-sbtn{
+  border:1px solid var(--rp-border);background:var(--rp-bg);color:var(--rp-muted);
+  border-radius:8px;padding:6px 9px;font-size:14px;cursor:pointer;line-height:1;transition:.12s;
+}
+#rp-historial .rp-sbtn:hover{border-color:var(--rp-faint);}
+#rp-historial .rp-sbtn.active.ganado{background:rgba(39,208,122,.15);border-color:var(--rp-win);}
+#rp-historial .rp-sbtn.active.perdido{background:rgba(239,71,87,.15);border-color:var(--rp-loss);}
+#rp-historial .rp-sbtn.active.pendiente{background:rgba(245,166,35,.15);border-color:var(--rp-pend);}
+#rp-historial .rp-del{background:none;border:none;color:var(--rp-faint);cursor:pointer;font-size:16px;padding:4px;}
+#rp-historial .rp-del:hover{color:var(--rp-loss);}
+
+/* ---------- Historial por días ---------- */
+#rp-historial .rp-history{display:flex;flex-direction:column;gap:8px;}
+#rp-historial .rp-hrow{
+  display:flex;align-items:center;justify-content:space-between;gap:14px;flex-wrap:wrap;
+  background:var(--rp-surface);border:1px solid var(--rp-border);border-radius:var(--rp-radius-sm);
+  padding:13px 16px;
+}
+#rp-historial .rp-hrow .rp-hdate{font-weight:700;font-size:14px;min-width:96px;}
+#rp-historial .rp-hrow .rp-hstats{color:var(--rp-muted);font-size:13px;flex:1;}
+#rp-historial .rp-hrow .rp-hstats b.win{color:var(--rp-win);}
+#rp-historial .rp-hrow .rp-hstats b.loss{color:var(--rp-loss);}
+#rp-historial .rp-hrow .rp-hpct{font-weight:700;font-size:14px;min-width:52px;text-align:right;}
+
+/* ---------- Empty / nota ---------- */
+#rp-historial .rp-empty{
+  text-align:center;color:var(--rp-muted);padding:32px 16px;border:1px dashed var(--rp-border);
+  border-radius:var(--rp-radius-sm);font-size:14px;
+}
+#rp-historial .rp-note{
+  font-size:12px;color:var(--rp-faint);margin-top:18px;line-height:1.6;
+  border-top:1px solid var(--rp-border);padding-top:16px;
+}
+#rp-historial .rp-note code{background:var(--rp-surface-2);padding:1px 6px;border-radius:5px;color:var(--rp-muted);}
+
+/* ---------- Responsive ---------- */
+@media (max-width:760px){
+  #rp-historial .rp-form{grid-template-columns:1fr 1fr;}
+  #rp-historial .rp-trust{text-align:left;width:100%;}
+  #rp-historial .rp-head{align-items:flex-start;}
+  #rp-historial .rp-pick{grid-template-columns:auto 1fr;grid-template-areas:"dot main" "states states";}
+  #rp-historial .rp-pick .rp-state-dot{grid-area:dot;}
+  #rp-historial .rp-pick .rp-pick-main{grid-area:main;}
+  #rp-historial .rp-pick .rp-pick-states{grid-area:states;justify-content:flex-end;}
+  #rp-historial .rp-pick .rp-del{position:absolute;}
+}
+@media (prefers-reduced-motion:reduce){#rp-historial *{transition:none!important;}}
+</style>
+</head>
+<body>
+
+<!-- ===================== INICIO SECCIÓN ===================== -->
+<section id="rp-historial">
+
+  <div class="rp-head">
+    <div>
+      <p class="rp-eyebrow">Roprost Predict</p>
+      <h1>Rentabilidad de Pronósticos <span>· día a día</span></h1>
+      <p class="rp-sub">Cada pronóstico se registra y se mide. La confiabilidad no se inventa: se calcula con los picks ganados y perdidos reales.</p>
+    </div>
+    <div class="rp-trust">
+      <div class="rp-trust-label">Confiabilidad de la página</div>
+      <div class="rp-trust-value" id="rp-trust-value">—</div>
+      <div class="rp-trust-pct" id="rp-trust-pct">Sin datos suficientes</div>
+    </div>
+  </div>
+
+  <!-- Métricas globales -->
+  <div class="rp-grid" id="rp-grid"></div>
+
+  <!-- Resumen del día -->
+  <h2 class="rp-section-title">📊 Resumen del día</h2>
+  <div class="rp-daycard" id="rp-daycard"></div>
+
+  <!-- Registrar pronóstico -->
+  <h2 class="rp-section-title">Registrar pronóstico</h2>
+  <div class="rp-form">
+    <div class="rp-field">
+      <label for="rp-f-match">Partido</label>
+      <input id="rp-f-match" type="text" placeholder="Ej. Boca vs River" autocomplete="off">
+    </div>
+    <div class="rp-field">
+      <label for="rp-f-market">Mercado</label>
+      <select id="rp-f-market">
+        <option value="Goles">Goles</option>
+        <option value="Córners">Córners</option>
+        <option value="Doble oportunidad">Doble oportunidad</option>
+      </select>
+    </div>
+    <div class="rp-field">
+      <label for="rp-f-pick">Pronóstico</label>
+      <input id="rp-f-pick" type="text" placeholder="Ej. Más de 2.5 goles" autocomplete="off">
+    </div>
+    <div class="rp-field">
+      <label for="rp-f-odd">Cuota</label>
+      <input id="rp-f-odd" type="number" step="0.01" min="1.01" value="1.85">
+    </div>
+    <button class="rp-btn" id="rp-add">Añadir pick</button>
+  </div>
+
+  <!-- Picks de hoy -->
+  <h2 class="rp-section-title">Pronósticos de hoy</h2>
+  <div class="rp-picks" id="rp-picks-today"></div>
+
+  <!-- Historial -->
+  <h2 class="rp-section-title">📅 Historial</h2>
+  <div class="rp-history" id="rp-history"></div>
+
+  <div class="rp-note">
+    Marca el resultado de cada pick con <code>✅</code> ganado, <code>❌</code> perdido o <code>⏳</code> pendiente. Solo los finalizados (ganados + perdidos) cuentan para el porcentaje.
+    El % de acierto se calcula como <code>ganados ÷ (ganados + perdidos) × 100</code>. La rentabilidad usa la cuota registrada: <code>Σ(cuota−1) de ganados − nº de perdidos</code>, en unidades.
+    Los datos se guardan en este navegador. <button class="rp-btn ghost" id="rp-reset" style="margin-left:6px;">Reiniciar datos</button>
+  </div>
+
+</section>
+<!-- ====================== FIN SECCIÓN ====================== -->
+
+<script>
+(function(){
+  "use strict";
+  const KEY = "rp_picks_v1";
+  const MIN_GLOBAL = 5;   // mínimo de picks finalizados para mostrar confiabilidad global
+  const MIN_DAY = 3;      // mínimo por día para etiquetar un día del historial
+
+  // ---------- utilidades de fecha ----------
+  const todayISO = () => new Date().toISOString().slice(0,10);
+  function fmtDate(iso){
+    const [y,m,d] = iso.split("-");
+    return `${d}/${m}/${y}`;
+  }
+
+  // ---------- almacenamiento ----------
+  function load(){
+    try{ return JSON.parse(localStorage.getItem(KEY)) || []; }
+    catch(e){ return []; }
+  }
+  function save(p){ localStorage.setItem(KEY, JSON.stringify(p)); }
+
+  // Datos de ejemplo (coinciden con el mockup) — solo la primera vez.
+  function seedIfEmpty(){
+    if(localStorage.getItem(KEY) !== null) return;
+    const t = todayISO();
+    const d = (n)=>{const x=new Date(); x.setDate(x.getDate()-n); return x.toISOString().slice(0,10);};
+    const demo = [];
+    const mk = (fecha,partido,mercado,pick,cuota,estado)=>demo.push({id:cryptoId(),fecha,partido,mercado,pick,cuota,estado});
+    // Hoy: 6 ganadas / 2 perdidas
+    mk(t,"Real Madrid vs Sevilla","Goles","Más de 2.5",1.80,"ganado");
+    mk(t,"Inter vs Lazio","Córners","Más de 8.5 córners",1.90,"ganado");
+    mk(t,"Arsenal vs Brighton","Doble oportunidad","1X",1.40,"ganado");
+    mk(t,"PSG vs Lyon","Goles","Ambos marcan",1.75,"ganado");
+    mk(t,"Bayern vs Wolfsburg","Goles","Más de 1.5",1.30,"ganado");
+    mk(t,"Atlético vs Getafe","Doble oportunidad","12",1.55,"ganado");
+    mk(t,"Juventus vs Torino","Córners","Más de 9.5 córners",2.05,"perdido");
+    mk(t,"Napoli vs Roma","Goles","Más de 3.5",2.40,"perdido");
+    // Ayer: 5 ganadas / 1 perdida
+    mk(d(1),"Liverpool vs Everton","Goles","Más de 2.5",1.70,"ganado");
+    mk(d(1),"Milan vs Udinese","Doble oportunidad","1X",1.35,"ganado");
+    mk(d(1),"Dortmund vs Mainz","Goles","Ambos marcan",1.65,"ganado");
+    mk(d(1),"Chelsea vs Fulham","Córners","Más de 9.5 córners",1.95,"ganado");
+    mk(d(1),"Barcelona vs Cádiz","Doble oportunidad","1X",1.25,"ganado");
+    mk(d(1),"Roma vs Genoa","Goles","Más de 2.5",1.85,"perdido");
+    // Anteayer: 4 ganadas / 3 perdidas
+    mk(d(2),"Man City vs Burnley","Goles","Más de 2.5",1.60,"ganado");
+    mk(d(2),"Betis vs Osasuna","Doble oportunidad","X2",1.70,"ganado");
+    mk(d(2),"Leipzig vs Bremen","Córners","Más de 8.5 córners",1.80,"ganado");
+    mk(d(2),"Villarreal vs Celta","Goles","Ambos marcan",1.75,"ganado");
+    mk(d(2),"Lazio vs Empoli","Goles","Más de 2.5",1.90,"perdido");
+    mk(d(2),"Lille vs Niza","Doble oportunidad","12",1.50,"perdido");
+    mk(d(2),"Sociedad vs Mallorca","Córners","Más de 9.5 córners",2.10,"perdido");
+    save(demo);
+  }
+
+  function cryptoId(){
+    return (Date.now().toString(36) + Math.random().toString(36).slice(2,8));
+  }
+
+  // ---------- clasificación de confiabilidad ----------
+  function reliability(finalizados, pct, umbral){
+    if(finalizados < umbral) return {label:"Datos insuficientes", cls:"insuf"};
+    if(pct >= 80) return {label:"Muy alta", cls:"muyalta"};
+    if(pct >= 70) return {label:"Alta", cls:"alta"};
+    if(pct >= 60) return {label:"Media", cls:"media"};
+    return {label:"Baja", cls:"baja"};
+  }
+
+  // ---------- cálculo de estadísticas ----------
+  function compute(picks){
+    const g = picks.filter(p=>p.estado==="ganado");
+    const l = picks.filter(p=>p.estado==="perdido");
+    const p = picks.filter(p=>p.estado==="pendiente");
+    const fin = g.length + l.length;
+    const pct = fin ? (g.length/fin*100) : null;
+    // rentabilidad en unidades (stake 1 por pick)
+    const profit = g.reduce((s,x)=>s+((+x.cuota||0)-1),0) - l.length;
+    return {g,l,p,fin,pct,profit};
+  }
+
+  function streak(picks){
+    // racha sobre picks finalizados, ordenados por fecha desc + orden de registro
+    const fin = picks.filter(p=>p.estado!=="pendiente");
+    if(!fin.length) return {n:0,type:null};
+    // mantener orden de inserción dentro del array (más reciente al final)
+    const ordered = fin.slice().reverse();
+    const type = ordered[0].estado;
+    let n=0;
+    for(const x of ordered){ if(x.estado===type) n++; else break; }
+    return {n,type};
+  }
+
+  // ---------- render ----------
+  function render(){
+    const picks = load();
+    const all = compute(picks);
+    const today = todayISO();
+    const todayPicks = picks.filter(p=>p.fecha===today);
+    const dayStats = compute(todayPicks);
+    const st = streak(picks);
+
+    // Confiabilidad global
+    const relG = reliability(all.fin, all.pct ?? 0, MIN_GLOBAL);
+    const tv = document.getElementById("rp-trust-value");
+    const tp = document.getElementById("rp-trust-pct");
+    tv.textContent = relG.label;
+    tv.style.color = relG.cls==="insuf" ? "var(--rp-muted)" : (
+      relG.cls==="baja" ? "var(--rp-loss)" : relG.cls==="media" ? "var(--rp-pend)" : "var(--rp-win)");
+    tp.textContent = all.fin < MIN_GLOBAL
+      ? `Faltan ${MIN_GLOBAL-all.fin} resultado(s) para clasificar`
+      : `${all.pct.toFixed(1)}% de acierto · ${all.fin} finalizados`;
+
+    // Métricas globales
+    const profitTxt = (all.profit>0?"+":"") + all.profit.toFixed(2) + " u";
+    const profitCls = all.profit>0 ? "pos" : all.profit<0 ? "neg" : "neu";
+    const profitLabel = all.profit>0 ? "Positiva" : all.profit<0 ? "Negativa" : "Neutra";
+    const grid = document.getElementById("rp-grid");
+    grid.innerHTML = `
+      ${statCard("win","Ganados",all.g.length,"finalizados con éxito")}
+      ${statCard("loss","Perdidos",all.l.length,"resultados fallidos")}
+      ${statCard("pend","Pendientes",all.p.length,"aún sin resultado")}
+      ${statCard("","Total de picks",picks.length,"registrados en total")}
+      ${statCard("","Acierto general", all.pct===null?"—":all.pct.toFixed(0)+"%", all.fin?`${all.g.length}/${all.fin} finalizados`:"sin finalizados")}
+      ${statCard("","Racha actual", st.n? st.n : "0", st.type? (st.type==="ganado"?"ganadas seguidas":"perdidas seguidas") : "sin racha")}
+      <div class="rp-stat">
+        <div class="rp-stat-label">Rentabilidad estimada</div>
+        <div class="rp-stat-value" style="font-size:22px;">${profitTxt}</div>
+        <div class="rp-stat-foot"><span class="rp-badge ${profitCls}">${profitLabel}</span></div>
+      </div>
+    `;
+
+    // Resumen del día
+    const relD = reliability(dayStats.fin, dayStats.pct ?? 0, MIN_DAY);
+    const best = bestPick(dayStats.g, "max");
+    const worst = bestPick(dayStats.l, "max");
+    const dayProfitTxt = (dayStats.profit>0?"+":"") + dayStats.profit.toFixed(2)+" u";
+    const dayProfitLabel = dayStats.profit>0?"Positiva":dayStats.profit<0?"Negativa":"Neutra";
+    document.getElementById("rp-daycard").innerHTML = `
+      <div class="rp-day-top">
+        <div class="rp-day-date">Fecha: ${fmtDate(today)}</div>
+        <span class="rp-badge ${relD.cls}">Confiabilidad: ${relD.label}</span>
+      </div>
+      <div class="rp-day-rows">
+        <div><div class="rp-dr-label">Realizados</div><div class="rp-dr-val">${todayPicks.length}</div></div>
+        <div><div class="rp-dr-label">Ganados</div><div class="rp-dr-val" style="color:var(--rp-win)">${dayStats.g.length}</div></div>
+        <div><div class="rp-dr-label">Perdidos</div><div class="rp-dr-val" style="color:var(--rp-loss)">${dayStats.l.length}</div></div>
+        <div><div class="rp-dr-label">Pendientes</div><div class="rp-dr-val" style="color:var(--rp-pend)">${dayStats.p.length}</div></div>
+        <div><div class="rp-dr-label">Acierto del día</div><div class="rp-dr-val">${dayStats.pct===null?"—":dayStats.pct.toFixed(0)+"%"}</div></div>
+        <div><div class="rp-dr-label">Rentabilidad</div><div class="rp-dr-val" style="font-size:16px;color:${dayStats.profit>0?'var(--rp-win)':dayStats.profit<0?'var(--rp-loss)':'var(--rp-muted)'}">${dayProfitTxt} · ${dayProfitLabel}</div></div>
+        <div><div class="rp-dr-label">🏆 Mejor pick</div><div class="rp-dr-val" style="font-size:14px">${best}</div></div>
+        <div><div class="rp-dr-label">⚠️ Peor pick</div><div class="rp-dr-val" style="font-size:14px">${worst}</div></div>
+      </div>`;
+
+    // Picks de hoy
+    const cont = document.getElementById("rp-picks-today");
+    if(!todayPicks.length){
+      cont.innerHTML = `<div class="rp-empty">Aún no hay pronósticos de hoy. Registra el primero arriba.</div>`;
+    } else {
+      cont.innerHTML = todayPicks.slice().reverse().map(renderPick).join("");
+    }
+
+    // Historial por días (excluye hoy)
+    renderHistory(picks, today);
+
+    bindPickEvents();
+  }
+
+  function statCard(cls,label,value,foot){
+    return `<div class="rp-stat ${cls}">
+      <div class="rp-stat-label">${label}</div>
+      <div class="rp-stat-value">${value}</div>
+      <div class="rp-stat-foot">${foot}</div>
+    </div>`;
+  }
+
+  function bestPick(arr, mode){
+    if(!arr.length) return "—";
+    let chosen = arr[0];
+    for(const x of arr){ if((+x.cuota||0) > (+chosen.cuota||0)) chosen = x; }
+    return `${escapeHtml(chosen.partido)} <span style="color:var(--rp-muted)">(${(+chosen.cuota).toFixed(2)})</span>`;
+  }
+
+  function renderPick(p){
+    const icon = {ganado:"✅",perdido:"❌",pendiente:"⏳"};
+    return `<div class="rp-pick ${p.estado}" style="position:relative;">
+      <span class="rp-state-dot ${p.estado}"></span>
+      <div class="rp-pick-main">
+        <div class="rp-pick-match">${escapeHtml(p.partido)}</div>
+        <div class="rp-pick-meta"><span class="rp-pick-market">${escapeHtml(p.mercado)}</span>${escapeHtml(p.pick)} · cuota ${(+p.cuota).toFixed(2)}</div>
+      </div>
+      <div class="rp-pick-states">
+        <button class="rp-sbtn pendiente ${p.estado==='pendiente'?'active':''}" data-id="${p.id}" data-st="pendiente" title="Pendiente">⏳</button>
+        <button class="rp-sbtn ganado ${p.estado==='ganado'?'active':''}" data-id="${p.id}" data-st="ganado" title="Ganado">✅</button>
+        <button class="rp-sbtn perdido ${p.estado==='perdido'?'active':''}" data-id="${p.id}" data-st="perdido" title="Perdido">❌</button>
+      </div>
+      <button class="rp-del" data-del="${p.id}" title="Eliminar">🗑</button>
+    </div>`;
+  }
+
+  function renderHistory(picks, today){
+    const cont = document.getElementById("rp-history");
+    const byDay = {};
+    picks.forEach(p=>{ if(p.fecha!==today){ (byDay[p.fecha]=byDay[p.fecha]||[]).push(p); }});
+    const days = Object.keys(byDay).sort().reverse();
+    if(!days.length){
+      cont.innerHTML = `<div class="rp-empty">El historial de días anteriores aparecerá aquí.</div>`;
+      return;
+    }
+    cont.innerHTML = days.map(day=>{
+      const s = compute(byDay[day]);
+      const rel = reliability(s.fin, s.pct ?? 0, MIN_DAY);
+      const pct = s.pct===null ? "—" : s.pct.toFixed(0)+"%";
+      return `<div class="rp-hrow">
+        <span class="rp-hdate">${fmtDate(day)}</span>
+        <span class="rp-hstats"><b class="win">${s.g.length} ganadas</b> / <b class="loss">${s.l.length} perdidas</b>${s.p.length?` · ${s.p.length} pend.`:""}</span>
+        <span class="rp-hpct">${pct}</span>
+        <span class="rp-badge ${rel.cls}">${rel.label}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // ---------- eventos ----------
+  function bindPickEvents(){
+    document.querySelectorAll("#rp-historial .rp-sbtn").forEach(b=>{
+      b.onclick = ()=>{
+        const picks = load();
+        const p = picks.find(x=>x.id===b.dataset.id);
+        if(p){ p.estado = b.dataset.st; save(picks); render(); }
+      };
+    });
+    document.querySelectorAll("#rp-historial .rp-del").forEach(b=>{
+      b.onclick = ()=>{
+        let picks = load();
+        picks = picks.filter(x=>x.id!==b.dataset.del);
+        save(picks); render();
+      };
+    });
+  }
+
+  function escapeHtml(s){
+    return String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  }
+
+  // Añadir pick
+  document.getElementById("rp-add").onclick = ()=>{
+    const match = document.getElementById("rp-f-match").value.trim();
+    const market = document.getElementById("rp-f-market").value;
+    const pick = document.getElementById("rp-f-pick").value.trim();
+    const odd = parseFloat(document.getElementById("rp-f-odd").value);
+    if(!match || !pick){ alert("Escribe el partido y el pronóstico."); return; }
+    const picks = load();
+    picks.push({
+      id: cryptoId(), fecha: todayISO(), partido: match,
+      mercado: market, pick: pick, cuota: (odd && odd>1 ? odd : 1.85),
+      estado: "pendiente"
+    });
+    save(picks);
+    document.getElementById("rp-f-match").value="";
+    document.getElementById("rp-f-pick").value="";
+    document.getElementById("rp-f-odd").value="1.85";
+    render();
+  };
+
+  // Reiniciar
+  document.getElementById("rp-reset").onclick = ()=>{
+    if(confirm("¿Borrar todos los pronósticos guardados? Esto no se puede deshacer.")){
+      localStorage.removeItem(KEY);
+      render(); // quedará vacío; recarga la página si quieres volver a ver los datos de ejemplo
+    }
+  };
+
+  // init
+  seedIfEmpty();
+  render();
+})();
+</script>
+</body>
+</html>
