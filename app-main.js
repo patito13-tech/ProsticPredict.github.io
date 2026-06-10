@@ -138,11 +138,20 @@
       return acc;
     }, {});
 
-    const bloquesLiga = Object.keys(grupos).map(liga => `
-      <div class="liga-grupo">
-        <h3 class="liga-titulo">${liga}</h3>
-        <div class="matches">${grupos[liga].map(p => cardPartido(p, fecha)).join("")}</div>
-      </div>`).join("");
+    const bloquesLiga = Object.keys(grupos).map((liga, index) => {
+      const total = grupos[liga].length;
+      return `
+      <div class="liga-grupo ${index === 0 ? "open" : ""}">
+        <button class="liga-head" aria-expanded="${index === 0 ? "true" : "false"}">
+          <span class="liga-nombre">${liga}</span>
+          <span class="liga-cantidad">${total} partido${total === 1 ? "" : "s"}</span>
+          <span class="liga-caret">▾</span>
+        </button>
+        <div class="liga-body">
+          <div class="matches">${grupos[liga].map(p => cardPartido(p, fecha)).join("")}</div>
+        </div>
+      </div>`;
+    }).join("");
 
     return `<section class="bloque">
       <h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>
@@ -151,6 +160,14 @@
   }
 
   function activarAcordeon() {
+    document.querySelectorAll(".liga-head").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const grupo = btn.closest(".liga-grupo");
+        const abierto = grupo.classList.toggle("open");
+        btn.setAttribute("aria-expanded", abierto);
+      });
+    });
+
     document.querySelectorAll(".match-head").forEach(btn => {
       btn.addEventListener("click", () => {
         const card = btn.closest(".match");
