@@ -1,15 +1,149 @@
-const ROPROST_WORKER_URL='https://roprost-live-api.oscarinfantemoran.workers.dev';
-function rpLiveNorm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/sub\s*/g,'u').replace(/[^a-z0-9 ]/g,'').replace(/\s+/g,' ').trim()}
-function rpLiveKey(a,b){return rpLiveNorm(a)+'|'+rpLiveNorm(b)}
-function rpVal(v){if(v===null||v===undefined)return 0;if(typeof v==='string')return Number(v.replace('%',''))||0;return Number(v)||0}
-function rpFuzzyTeam(a,b){a=rpLiveNorm(a);b=rpLiveNorm(b);if(!a||!b)return false;if(a===b||a.includes(b)||b.includes(a))return true;let aw=a.split(' ').filter(x=>x.length>1),bw=b.split(' ').filter(x=>x.length>1),hit=aw.filter(x=>bw.some(y=>x===y||x.includes(y)||y.includes(x))).length;return hit>=Math.min(2,Math.max(1,Math.min(aw.length,bw.length)))}
-function rpSavedLive(){try{return typeof rpGetSavedPicks==='function'?rpGetSavedPicks():JSON.parse(localStorage.getItem('rp_saved_picks')||'[]')}catch(e){return[]}}
-async function rpFetchWorkerLive(){try{let r=await fetch(ROPROST_WORKER_URL+'/live?t='+Date.now());let data=await r.json();return (data.response||[]).map(x=>{let st=x.fixture?.status||{},home=x.teams?.home?.name||'',away=x.teams?.away?.name||'',stats=x.statistics||[];function stat(team,type){let row=stats.find(s=>rpFuzzyTeam(s.team?.name,team));let val=(row?.statistics||[]).find(a=>String(a.type).toLowerCase()===String(type).toLowerCase())?.value;return rpVal(val)}return{key:rpLiveKey(home,away),local:home,visita:away,homeScore:rpVal(x.goals?.home),awayScore:rpVal(x.goals?.away),score:rpVal(x.goals?.home)+'-'+rpVal(x.goals?.away),minute:st.elapsed?st.elapsed+"'":(st.short||'Pendiente'),state:st.short||'',completed:st.short==='FT'||st.long==='Match Finished',corners:stat(home,'Corner Kicks')+stat(away,'Corner Kicks'),cards:stat(home,'Yellow Cards')+stat(away,'Yellow Cards')+stat(home,'Red Cards')+stat(away,'Red Cards'),shots:stat(home,'Total Shots')+stat(away,'Total Shots'),shotsOn:stat(home,'Shots on Goal')+stat(away,'Shots on Goal'),posHome:stat(home,'Ball Possession'),posAway:stat(away,'Ball Possession'),source:'API-Football'}})}catch(e){return[]}}
-async function rpFetchEspnLive(){let out=[];try{let r=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard?limit=500&t='+Date.now());let data=await r.json();(data.events||[]).forEach(ev=>{let c=ev.competitions&&ev.competitions[0];if(!c||!c.competitors||c.competitors.length<2)return;let h=c.competitors.find(x=>x.homeAway==='home')||c.competitors[0],a=c.competitors.find(x=>x.homeAway==='away')||c.competitors[1],st=c.status&&c.status.type?c.status.type:{};out.push({key:rpLiveKey(h.team.displayName||h.team.name,a.team.displayName||a.team.name),local:h.team.displayName||h.team.name,visita:a.team.displayName||a.team.name,homeScore:Number(h.score||0),awayScore:Number(a.score||0),score:(h.score||0)+'-'+(a.score||0),minute:st.shortDetail||st.detail||'Pendiente',state:st.state||'',completed:!!st.completed,corners:0,cards:0,shots:0,shotsOn:0,posHome:0,posAway:0,source:'ESPN'})})}catch(e){}return out}
-async function rpFetchLiveMatches(){let api=await rpFetchWorkerLive();let espn=await rpFetchEspnLive();return api.length?api.concat(espn):espn}
-function rpLiveEval(m,live){let txt=String(m||'').toLowerCase(),g=live.homeScore+live.awayScore;if(txt.includes('corner')){if(live.corners===0)return null;if(txt.includes('mas de'))return live.corners>parseFloat(txt.match(/mas de ([0-9.]+)/)?.[1]||0);if(txt.includes('menos de'))return live.corners<parseFloat(txt.match(/menos de ([0-9.]+)/)?.[1]||99)}if(txt.includes('tarjeta')){if(live.cards===0)return null;if(txt.includes('mas de'))return live.cards>parseFloat(txt.match(/mas de ([0-9.]+)/)?.[1]||0);if(txt.includes('menos de'))return live.cards<parseFloat(txt.match(/menos de ([0-9.]+)/)?.[1]||99)}if(txt.includes('mas de')&&txt.includes('goles'))return g>parseFloat(txt.match(/mas de ([0-9.]+)/)?.[1]||0);if(txt.includes('menos de')&&txt.includes('goles'))return g<parseFloat(txt.match(/menos de ([0-9.]+)/)?.[1]||99);if(txt.includes('ambos anotan: si'))return live.homeScore>0&&live.awayScore>0;if(txt.includes('ambos anotan: no'))return live.homeScore===0||live.awayScore===0;return null}
-function rpFindLiveForItem(item,live){return live.find(x=>rpFuzzyTeam(x.local,item.local)&&rpFuzzyTeam(x.visita,item.visita))||live.find(x=>rpFuzzyTeam(x.local,item.visita)&&rpFuzzyTeam(x.visita,item.local))}
-function rpMarketNeedsData(m){m=String(m||'').toLowerCase();if(m.includes('corner'))return'corners';if(m.includes('tarjeta'))return'tarjetas';return''}
-function rpRenderLiveGroupedRows(items,prefix,live){return rpGroupByMatch(items).reverse().map((g,i)=>{let id=prefix+'-'+i,one=g.items[0],lv=rpFindLiveForItem(one,live),extra=lv&&lv.source==='API-Football'?`<br>🚩 Córners ${lv.corners} · 🟨 Tarjetas ${lv.cards} · 🎯 Tiros ${lv.shotsOn}/${lv.shots}`:'',liveBox=lv?`<small>🔴 ${lv.source} · ${lv.minute} · Marcador ${lv.score}${extra}</small>`:`<small>Sin datos en vivo para este partido</small>`;let details=g.items.map(x=>{let st=rpStatusLabel(x),lv2=rpFindLiveForItem(x,live),ok=lv2?rpLiveEval(x.mercado,lv2):null,need=rpMarketNeedsData(x.mercado),missing=need&&lv2&&lv2.source!=='API-Football',cls=ok===true?'pill-ok':(ok===false&&lv2?.completed?'pill-risk':st[2]),label=ok===true?'CUMPLIDO':(ok===false&&lv2?.completed?'PERDIDA':(missing?'FALTA API':st[1])),emoji=ok===true?'✅':(ok===false&&lv2?.completed?'❌':(missing?'🔎':st[0])),res=lv2?`${lv2.score} · Córners ${lv2.corners||'s/d'} · Tarjetas ${lv2.cards||'s/d'}`:(x.resultado||'pendiente');return `<div class="pick rp-detail-row"><b>${emoji} ${x.mercado}<br><small>${x.prob}% · ${res}${lv2?' · '+lv2.minute:''}${missing?' · requiere API-Football':''}</small></b><span class="${cls}">${label}</span></div>`}).join('');let completed=g.items.filter(x=>{let lv3=rpFindLiveForItem(x,live);return lv3&&rpLiveEval(x.mercado,lv3)===true}).length;let pill=completed?['✅',completed+' cumplidos','pill-ok']:rpGroupStatus(g.items);return `<div class="pick rp-match-row" onclick="rpToggleGroup('${id}')"><b>${pill[0]} ${g.local} vs ${g.visita}<br>${liveBox}<small>${g.items.length} pronóstico(s) guardado(s)</small></b><span class="${pill[2]}">${pill[1]}</span></div><div id="${id}" class="rp-detail-box" style="display:none">${details}</div>`}).join('')}
-async function rpUpdateLiveResults(){let saved=rpSavedLive(),live=await rpFetchLiveMatches();let box=document.getElementById('rp-results-list');if(!box)return;if(!saved.length){box.innerHTML='<div class="empty">Aún no hay pronósticos guardados.</div>';return}let liveCount=saved.filter(x=>rpFindLiveForItem(x,live)).length;box.innerHTML=`<p class="info rp-summary"><b>Resumen</b><span>🔴 ${liveCount}</span><span>📊 Live</span><span>30s</span></p>`+rpRenderLiveGroupedRows(saved,'rp-live-now',live)}
-(function(){window.addEventListener('load',function(){setTimeout(rpUpdateLiveResults,2500);setInterval(rpUpdateLiveResults,30000);let old=window.rpUpdateResults;window.rpUpdateResults=async function(){if(typeof old==='function')await old();setTimeout(rpUpdateLiveResults,500)}})})();
+/* =====================================================================
+   ROPROST PREDICT — CAPA DE DATOS  (roprost-live.js)
+   ---------------------------------------------------------------------
+   Aquí va tu API KEY y la conexión con datos reales.
+   Por defecto arranca en MODO DEMO (datos de ejemplo) para que la
+   página funcione sin configurar nada. Cuando pongas tu key y tus ligas,
+   cambia USAR_DEMO a false.
+   ===================================================================== */
+
+const RoprostData = (() => {
+
+  /* =================================================================
+     1) CONFIGURACIÓN  — EDITA AQUÍ
+     ================================================================= */
+  const CONFIG = {
+    // ⬇️  Pon tu API KEY de API-Football (api-sports.io) aquí
+    API_KEY: "TU_API_KEY_AQUI",
+
+    // Proveedor: API-Football v3 (https://www.api-football.com)
+    API_HOST: "https://v3.football.api-sports.io",
+
+    // Ligas que quieres analizar (IDs de API-Football) y la temporada
+    // Ejemplos de IDs: Premier 39, La Liga 140, Serie A 135, Liga MX 262
+    LIGAS: [39, 140, 135],
+    TEMPORADA: 2025,
+
+    // true  = datos de ejemplo (funciona sin key)
+    // false = datos reales con tu API KEY
+    USAR_DEMO: true
+  };
+
+  /* ⚠️  NOTA DE SEGURIDAD:
+     En una página estática de GitHub Pages, cualquier API KEY en el
+     código JS es VISIBLE para quien mire el código fuente. Para uso
+     personal suele bastar, pero si la app se vuelve pública, lo ideal
+     es poner un pequeño proxy (Cloudflare Worker / Vercel) que guarde
+     la key del lado del servidor. */
+
+  /* =================================================================
+     2) DATOS DEMO  (porcentajes calculados de verdad sobre estos datos)
+        Cada equipo: gf=goles a favor/partido, ga=en contra/partido,
+                     cf=córners a favor, ca=córners en contra
+     ================================================================= */
+  const DEMO = [
+    {
+      id: 1, liga: "Premier League", fecha: "2026-06-10", hora: "19:00",
+      local:     { name: "Manchester City", gf: 2.6, ga: 0.8, cf: 7.2, ca: 3.1 },
+      visitante: { name: "Burnley",          gf: 0.9, ga: 2.1, cf: 3.4, ca: 6.0 }
+    },
+    {
+      id: 2, liga: "La Liga", fecha: "2026-06-10", hora: "21:00",
+      local:     { name: "Real Madrid", gf: 2.3, ga: 0.9, cf: 6.5, ca: 3.6 },
+      visitante: { name: "Getafe",      gf: 1.0, ga: 1.3, cf: 4.0, ca: 5.2 }
+    },
+    {
+      id: 3, liga: "Serie A", fecha: "2026-06-10", hora: "20:45",
+      local:     { name: "Juventus", gf: 1.4, ga: 1.0, cf: 5.1, ca: 4.4 },
+      visitante: { name: "Torino",   gf: 1.1, ga: 1.2, cf: 4.3, ca: 4.8 }
+    },
+    {
+      id: 4, liga: "Premier League", fecha: "2026-06-10", hora: "17:00",
+      local:     { name: "Brighton",       gf: 1.8, ga: 1.5, cf: 6.0, ca: 5.0 },
+      visitante: { name: "Tottenham",      gf: 2.0, ga: 1.4, cf: 5.5, ca: 5.3 }
+    },
+    {
+      id: 5, liga: "La Liga", fecha: "2026-06-10", hora: "19:30",
+      local:     { name: "Atlético Madrid", gf: 1.6, ga: 0.7, cf: 5.0, ca: 3.8 },
+      visitante: { name: "Cádiz",            gf: 0.8, ga: 1.6, cf: 3.5, ca: 5.5 }
+    },
+    {
+      id: 6, liga: "Serie A", fecha: "2026-06-10", hora: "18:00",
+      local:     { name: "Inter",  gf: 2.4, ga: 0.8, cf: 6.8, ca: 3.5 },
+      visitante: { name: "Lecce",  gf: 0.9, ga: 1.9, cf: 3.8, ca: 6.2 }
+    }
+  ];
+
+  /* =================================================================
+     3) ADAPTADOR API-FOOTBALL v3 (datos reales)
+     ================================================================= */
+  async function fetchJSON(endpoint) {
+    const res = await fetch(`${CONFIG.API_HOST}${endpoint}`, {
+      headers: { "x-apisports-key": CONFIG.API_KEY }
+    });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    return res.json();
+  }
+
+  // Promedios de un equipo en la temporada/liga (goles reales del API)
+  async function statsEquipo(teamId, leagueId) {
+    const data = await fetchJSON(
+      `/teams/statistics?team=${teamId}&league=${leagueId}&season=${CONFIG.TEMPORADA}`
+    );
+    const r = data.response;
+    const gf = parseFloat(r?.goals?.for?.average?.total) || 1.2;
+    const ga = parseFloat(r?.goals?.against?.average?.total) || 1.2;
+    // El endpoint estándar no entrega córners; usamos un estimado a partir
+    // de la fuerza ofensiva (documentado y marcado como aproximación).
+    const cf = +(4.5 + (gf - 1.2) * 1.6).toFixed(1);
+    const ca = +(4.5 + (ga - 1.2) * 1.6).toFixed(1);
+    return { gf, ga, cf, ca };
+  }
+
+  async function partidosReales() {
+    const hoy = new Date().toISOString().slice(0, 10);
+    const partidos = [];
+    for (const leagueId of CONFIG.LIGAS) {
+      const fixtures = await fetchJSON(
+        `/fixtures?league=${leagueId}&season=${CONFIG.TEMPORADA}&date=${hoy}`
+      );
+      for (const fx of (fixtures.response || [])) {
+        const homeId = fx.teams.home.id;
+        const awayId = fx.teams.away.id;
+        const [statsL, statsV] = await Promise.all([
+          statsEquipo(homeId, leagueId),
+          statsEquipo(awayId, leagueId)
+        ]);
+        partidos.push({
+          id: fx.fixture.id,
+          liga: fx.league.name,
+          fecha: hoy,
+          hora: new Date(fx.fixture.date).toLocaleTimeString("es", { hour: "2-digit", minute: "2-digit" }),
+          local:     { name: fx.teams.home.name, ...statsL },
+          visitante: { name: fx.teams.away.name, ...statsV }
+        });
+      }
+    }
+    return partidos;
+  }
+
+  /* =================================================================
+     4) PUNTO DE ENTRADA
+     ================================================================= */
+  async function obtenerPartidos() {
+    if (CONFIG.USAR_DEMO || CONFIG.API_KEY === "TU_API_KEY_AQUI") {
+      return { partidos: DEMO, demo: true };
+    }
+    try {
+      const partidos = await partidosReales();
+      return { partidos, demo: false };
+    } catch (e) {
+      console.error("Error con la API, usando demo:", e);
+      return { partidos: DEMO, demo: true, error: e.message };
+    }
+  }
+
+  return { CONFIG, obtenerPartidos };
+})();
+
+window.RoprostData = RoprostData;

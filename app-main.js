@@ -1,38 +1,163 @@
-let partidos=[],fechaSel='',filtroActivo='todos',partidoActual=null,iaActual=null;
-const ROPROST_API='https://roprost-api.oscarinfantemoran.workers.dev';
-function montarApp(){document.body.innerHTML=`<div class="app"><header class="top"><div class="brand"><div class="logo">RP</div><div><h1>Roprost Predict</h1><p>Predicciones deportivas con IA</p></div></div><div class="tabs"><button class="tab active" onclick="rpShowTab('partidos')">Partidos</button><button class="tab" onclick="rpShowTab('ia')">IA Predict</button><button class="tab" onclick="rpShowTab('estadisticas')">Estadisticas</button></div></header><nav id="dates" class="dates"></nav><section class="leagues"><div class="league-pill active" onclick="filtrar('todos',this)"><div class="circle">⚽</div>Todos<span id="count-todos" class="count">0</span></div><div class="league-pill" onclick="filtrar('internacional',this)"><div class="circle">🌎</div>Internac.<span id="count-internacional" class="count">0</span></div><div class="league-pill" onclick="filtrar('copas',this)"><div class="circle">🏆</div>Copas<span id="count-copas" class="count">0</span></div><div class="league-pill" onclick="filtrar('peru',this)"><div class="circle">🇵🇪</div>Peru<span id="count-peru" class="count">0</span></div><div class="league-pill" onclick="filtrar('espana',this)"><div class="circle">🇪🇸</div>Espana<span id="count-espana" class="count">0</span></div><div class="league-pill" onclick="filtrar('inglaterra',this)"><div class="circle">🏴</div>Inglaterra<span id="count-inglaterra" class="count">0</span></div><div class="league-pill" onclick="filtrar('italia',this)"><div class="circle">🇮🇹</div>Italia<span id="count-italia" class="count">0</span></div></section><main class="content"><section class="card" data-tab="partidos"><div class="head"><h2>📅 Partidos de hoy y mañana</h2><div><span id="estado">Cargando...</span> <button class="btn small" onclick="cargar(true)">Actualizar</button></div></div><div id="lista" style="padding:13px"></div></section><section class="selected" data-tab="ia"><div class="card"><div class="head"><h2>🔥 Partido seleccionado</h2><span id="detallePartido">Vista rápida</span></div><div class="game"><div class="teams"><div class="big"><div class="shield">⚽</div><h3 id="nombreLocal">Equipo local</h3><p class="good">Local</p></div><div class="vs">VS</div><div class="big"><div class="shield">⚽</div><h3 id="nombreVisita">Equipo visitante</h3><p class="warn">Visitante</p></div></div><div class="bars"><div class="bar"><small>Local</small><strong id="pLocal">--</strong></div><div class="bar"><small>Empate</small><strong id="pEmpate">--</strong></div><div class="bar"><small>Visita</small><strong id="pVisita">--</strong></div></div></div><div class="detail" id="analisisTexto">Selecciona un partido para activar la IA.</div></div><aside class="card"><div class="head"><h2>🧠 IA Roprost</h2><span id="iaNivel">Sin analizar</span></div><div class="ai-panel"><div class="ai-main"><small>Mejor jugada</small><strong id="mejorPick">Selecciona un partido</strong></div><button class="btn" onclick="guardarIA()" style="width:100%;margin:10px 0">📊 Guardar en Estadísticas IA</button><div class="ai-grid"><div class="ai-box"><small>Confianza</small><b id="boxConfianza">--</b></div><div class="ai-box"><small>Riesgo</small><b id="boxRiesgo">--</b></div></div><div>Mercados recomendados</div><div id="listaPicks"><div class="pick"><b>Esperando partido</b><span class="pill-mid">--</span></div></div><div class="strong-box"><h3>🔥 Selecciones fuertes +70%</h3><div id="strongList" class="strong-empty">Selecciona un partido para ver opciones fuertes.</div><div class="strong-note">Solo opciones con índice igual o mayor a 70%.</div></div><div class="signals" id="senales"><b>Señales:</b> toca un partido para generar lectura.</div></div></aside></section><section class="card" data-tab="estadisticas"><div class="head"><h2>📊 Estadísticas IA</h2><div><button class="btn small" onclick="revisarResultados()">Revisar resultados</button> <button class="btn small" onclick="limpiarStats()">Limpiar</button></div></div><div id="statsPanel" style="padding:16px"></div></section></main><p class="footer">Roprost Predict © 2026</p></div>`;crearFechas();cargar();setInterval(()=>cargar(false),600000)}
-function fechaISO(o){const d=new Date();d.setDate(d.getDate()+o);return d.toISOString().split('T')[0]}
-function fechaESPN(o){const d=new Date();d.setDate(d.getDate()+o);return d.getFullYear()+String(d.getMonth()+1).padStart(2,'0')+String(d.getDate()).padStart(2,'0')}
-function fechaTexto(f){const d=new Date(f+'T00:00:00');return d.toLocaleDateString('es-PE',{weekday:'short',day:'2-digit',month:'short'}).replace('.','')}
-function crearFechas(){const b=document.getElementById('dates');fechaSel=fechaISO(0);b.innerHTML='';[[0,'HOY'],[1,'MAÑANA']].forEach(x=>{const f=fechaISO(x[0]);b.innerHTML+=`<button class="date ${x[0]===0?'active':''}" onclick="cambiarFecha('${f}',this)"><strong>${x[1]}</strong><small>${fechaTexto(f)}</small></button>`})}
-function addUnico(a,p){const k=(p.fecha+'|'+p.local+'|'+p.visita).toLowerCase();if(!a.some(x=>(x.fecha+'|'+x.local+'|'+x.visita).toLowerCase()===k))a.push(p)}
-function horaMin(h){let s=String(h||'').toLowerCase().replace(/\s+/g,' ').trim(),m=s.match(/(\d{1,2}):(\d{2})/);if(!m)return 99999;let hour=Number(m[1]),min=Number(m[2]);let isPM=s.includes('p. m')||s.includes('pm')||s.includes('p.m');let isAM=s.includes('a. m')||s.includes('am')||s.includes('a.m');if(isPM&&hour<12)hour+=12;if(isAM&&hour===12)hour=0;return hour*60+min}
-function ordenarPorHora(arr){return (arr||[]).sort((a,b)=>horaMin(a.hora)-horaMin(b.hora)||String(a.local).localeCompare(String(b.local)))}
-function marcadorTexto(p){let h=p.golesLocal,a=p.golesVisita;if(h===null||h===undefined||a===null||a===undefined)return p.hora;return h+' - '+a}
-function estadoTexto(p){let s=String(p.estado||'').toUpperCase();if(['FT','AET','PEN'].includes(s))return 'FT';if(['1H','2H','HT','ET','BT','P'].includes(s))return 'EN VIVO';if(s==='NS'||s==='TBD')return 'PEND.';return s||'PEND.'}
-async function cargar(forzar=false){document.getElementById('estado').innerText='Cargando...';let a=[];await cargarApiFootball(a,forzar);if(!a.length){await cargarESPN(a,forzar);await cargarSportsDB(a,forzar)}partidos=ordenarPorHora(a);render()}
-async function cargarApiFootball(a,forzar){for(const off of [0,1]){const f=fechaISO(off),cacheKey='rp_api_fixtures_'+f;try{let data=null;if(!forzar){let c=localStorage.getItem(cacheKey);if(c){let o=JSON.parse(c);if(Date.now()-o.t<180000)data=o.data}}if(!data){const r=await fetch(ROPROST_API+'/?endpoint=fixtures&date='+f);data=await r.json();if(data.errors&&Object.keys(data.errors).length){return}localStorage.setItem(cacheKey,JSON.stringify({t:Date.now(),data}))}(data.response||[]).forEach(ev=>addUnico(a,{id:ev.fixture?.id,local:ev.teams?.home?.name||'Equipo local',visita:ev.teams?.away?.name||'Equipo visitante',liga:ev.league?.name||'API Football',hora:new Date(ev.fixture?.date).toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}),fecha:f,estado:ev.fixture?.status?.short||'NS',golesLocal:ev.goals?.home,golesVisita:ev.goals?.away,hb:ev.teams?.home?.logo||'',ab:ev.teams?.away?.logo||'',fuente:'API-FOOTBALL'}))}catch(e){}}}
-async function cargarESPN(a,forzar){for(const off of [0,1]){const f=fechaISO(off);try{const r=await fetch('https://site.api.espn.com/apis/site/v2/sports/soccer/all/scoreboard?dates='+fechaESPN(off)+'&limit=500&t='+(forzar?Date.now():''));const data=await r.json();(data.events||[]).forEach(ev=>{const c=ev.competitions&&ev.competitions[0];if(!c||!c.competitors||c.competitors.length<2)return;const h=c.competitors.find(x=>x.homeAway==='home')||c.competitors[0],v=c.competitors.find(x=>x.homeAway==='away')||c.competitors[1],dt=new Date(ev.date);addUnico(a,{local:h.team.displayName||h.team.name,visita:v.team.displayName||v.team.name,liga:(ev.season&&ev.season.slug?ev.season.slug.replaceAll('-',' '):'ESPN Soccer'),hora:dt.toLocaleTimeString('es-PE',{hour:'2-digit',minute:'2-digit'}),fecha:f,estado:c.status&&c.status.type?c.status.type.shortDetail:'NO JUG.',golesLocal:h.score!==undefined&&h.score!==''?Number(h.score):null,golesVisita:v.score!==undefined&&v.score!==''?Number(v.score):null,hb:h.team.logo||'',ab:v.team.logo||'',fuente:'ESPN'})})}catch(e){}}}
-async function cargarSportsDB(a,forzar){for(const f of [fechaISO(0),fechaISO(1)]){try{const r=await fetch('https://www.thesportsdb.com/api/v1/json/3/eventsday.php?d='+f+'&s=Soccer&t='+(forzar?Date.now():''));const data=await r.json();(data.events||[]).forEach(e=>addUnico(a,{local:e.strHomeTeam||'Equipo local',visita:e.strAwayTeam||'Equipo visitante',liga:e.strLeague||'Otros partidos',hora:e.strTime?e.strTime.substring(0,5):'P.P.',fecha:f,estado:e.strStatus==='Match Finished'?'FT':'NS',golesLocal:e.intHomeScore!==null?Number(e.intHomeScore):null,golesVisita:e.intAwayScore!==null?Number(e.intAwayScore):null,hb:e.strHomeTeamBadge||'',ab:e.strAwayTeamBadge||'',fuente:'TheSportsDB'}))}catch(e){}}}
-function categoria(p){const t=(p.liga+' '+p.local+' '+p.visita).toLowerCase();if(/peru|alianza lima|universitario|sporting cristal|melgar|cienciano|cusco/.test(t))return'peru';if(/spain|espana|laliga|real madrid|barcelona|atletico|sevilla|valencia/.test(t))return'espana';if(/england|premier|liverpool|arsenal|chelsea|manchester|tottenham/.test(t))return'inglaterra';if(/italy|italia|serie a|inter|juventus|milan|napoli|roma|lazio/.test(t))return'italia';if(/world|international|amistoso|friendly|nations|fifa|national|qualifier|mundial/.test(t))return'internacional';if(/cup|copa|champions|libertadores|sudamericana|uefa|supercup/.test(t))return'copas';return'otros'}
-function filtrar(f,el){filtroActivo=f;document.querySelectorAll('.league-pill').forEach(x=>x.classList.remove('active'));el.classList.add('active');render()}
-function cambiarFecha(f,b){fechaSel=f;document.querySelectorAll('.date').forEach(x=>x.classList.remove('active'));b.classList.add('active');render()}
-function listaDelDia(){return partidos.filter(p=>p.fecha===fechaSel)}
-function actualizarContadores(){const d=listaDelDia();['todos','internacional','copas','peru','espana','inglaterra','italia'].forEach(k=>{const el=document.getElementById('count-'+k);if(el)el.innerText=k==='todos'?d.length:d.filter(p=>categoria(p)===k).length})}
-function render(){actualizarContadores();let lista=listaDelDia();if(filtroActivo!=='todos')lista=lista.filter(p=>categoria(p)===filtroActivo);lista=ordenarPorHora(lista);document.getElementById('estado').innerText=lista.length+' partidos';const cont=document.getElementById('lista');cont.innerHTML='';if(!lista.length){cont.innerHTML='<div class="empty">No hay partidos para este filtro o la API llegó al límite. Presiona Actualizar en unos minutos.</div>';return}lista.forEach(p=>{const i=partidos.indexOf(p);const box=document.createElement('div');box.className='competition';box.innerHTML=`<div class="match" onclick="seleccionar(${i})"><div class="team">${badge(p.hb)}<span>${p.local}</span></div><div class="time"><strong>${marcadorTexto(p)}</strong><small>${estadoTexto(p)}</small></div><div class="team away"><span>${p.visita}</span>${badge(p.ab)}</div><div class="mini">Analizar<span class="src">${p.liga} · ${p.fuente}</span></div></div>`;cont.appendChild(box)})}
-function badge(u){return u?`<span class="badge"><img src="${u}"></span>`:'<span class="badge">⚽</span>'}
-function seleccionar(i){const p=partidos[i];partidoActual=p;analizar(p);iaActual=typeof rpAnalyzeMarkets==='function'?rpAnalyzeMarkets(p.local,p.visita,p.liga):null;window.rpCurrentMatch=p;window.rpCurrentIA=iaActual;rpShowTab('ia')}
-function getStats(){try{return JSON.parse(localStorage.getItem('rp_saved_picks')||'[]')}catch(e){return[]}}
-function setStats(a){localStorage.setItem('rp_saved_picks',JSON.stringify(a))}
-function norm(s){return String(s||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]+/g,' ').trim()}
-function dedupeStats(arr){let m={};(arr||[]).forEach(x=>{let key=[norm(x.local),norm(x.visita),norm(x.mercado),String(x.fecha||'')].join('|');if(!m[key])m[key]=x;else{m[key]={...m[key],...x,estado:m[key].estado!=='pendiente'?m[key].estado:x.estado||m[key].estado}}});return Object.values(m)}
-function limpiarStats(){if(confirm('¿Limpiar todos los pronósticos guardados?')){localStorage.removeItem('rp_saved_picks');localStorage.removeItem('rp_history_results');pintarStats()}}
-function guardarIA(){let p=partidoActual||window.rpCurrentMatch;if(!p){alert('Primero selecciona un partido');return}let ia=iaActual||window.rpCurrentIA||(typeof rpAnalyzeMarkets==='function'?rpAnalyzeMarkets(p.local,p.visita,p.liga):null);if(!ia){alert('No se pudo generar IA');return}let markets=(ia.strong&&ia.strong.length?ia.strong:ia.recommended||[]).filter(x=>x&&x.prob>=70);if(!markets.length)markets=(ia.recommended||[]).slice(0,4);let arr=dedupeStats(getStats()),added=0,key=(p.local+'|'+p.visita).toLowerCase();markets.forEach(m=>{let exists=arr.some(x=>norm(x.local)===norm(p.local)&&norm(x.visita)===norm(p.visita)&&norm(x.mercado)===norm(m.nombre)&&String(x.fecha||'')===String(p.fecha||fechaSel));if(!exists){arr.push({id:key+'|'+m.nombre+'|'+(p.fecha||fechaSel),key,fecha:p.fecha||fechaSel,hora:p.hora||'',local:p.local,visita:p.visita,liga:p.liga||'',mercado:m.nombre,prob:m.prob,resultado:p.golesLocal!=null&&p.golesVisita!=null?p.golesLocal+'-'+p.golesVisita:'',estado:'pendiente',fixtureId:p.id||''});added++}});setStats(dedupeStats(arr));alert(added?('Guardado: '+added+' pronóstico(s)'):'Ya estaba guardado');pintarStats();rpShowTab('estadisticas')}
-function evalPick(x,home,away){let total=home+away,m=norm(x.mercado);if(m.includes('mas de 0 5 goles'))return total>0;if(m.includes('mas de 1 5 goles'))return total>1;if(m.includes('mas de 2 5 goles'))return total>2;if(m.includes('mas de 3 5 goles'))return total>3;if(m.includes('menos de 4 5 goles'))return total<5;if(m.includes('menos de 3 5 goles'))return total<4;if(m.includes('corners')||m.includes('tarjetas'))return null;if(m.includes('doble oportunidad'))return null;return null}
-async function revisarResultados(){let arr=dedupeStats(getStats());if(!arr.length){pintarStats();return}let ids=[...new Set(arr.map(x=>x.fixtureId).filter(Boolean))];for(const id of ids){try{const r=await fetch(ROPROST_API+'/?endpoint=fixtures&id='+id);const data=await r.json();let ev=(data.response||[])[0];if(!ev)continue;let status=ev.fixture?.status?.short||'',finished=['FT','AET','PEN'].includes(status);let home=Number(ev.goals?.home),away=Number(ev.goals?.away);if(!finished||Number.isNaN(home)||Number.isNaN(away))continue;arr=arr.map(x=>{if(String(x.fixtureId)!==String(id))return x;let res=evalPick(x,home,away);return {...x,resultado:home+'-'+away,estado:res===true?'ganada':res===false?'perdida':'sin_datos'}})}catch(e){}}setStats(dedupeStats(arr));pintarStats()}
-function estadoGrupo(items){let w=items.filter(x=>x.estado==='ganada').length,l=items.filter(x=>x.estado==='perdida').length,p=items.filter(x=>x.estado==='pendiente').length,n=items.filter(x=>x.estado==='sin_datos').length;if(p)return['⏳',p+' pendientes','pill-mid'];if(l)return['❌',l+' perdidas','pill-risk'];if(n&&!w)return['⚠️',n+' sin datos','pill-mid'];return['✅',w+' ganadas','pill-ok']}
-function statLabel(x){if(x.estado==='ganada')return['✅','GANADA','pill-ok'];if(x.estado==='perdida')return['❌','PERDIDA','pill-risk'];if(x.estado==='sin_datos')return['⚠️','SIN DATOS','pill-mid'];return['⏳','PENDIENTE','pill-mid']}
-function toggleStats(id){let e=document.getElementById(id);if(e)e.style.display=e.style.display==='none'?'block':'none'}
-function pintarStats(){let b=document.getElementById('statsPanel');if(!b)return;let arr=dedupeStats(getStats());setStats(arr);if(!arr.length){b.innerHTML='<div class="empty">Aún no hay pronósticos guardados. Selecciona un partido y presiona Guardar en Estadísticas IA.</div>';return}let w=arr.filter(x=>x.estado==='ganada').length,l=arr.filter(x=>x.estado==='perdida').length,p=arr.filter(x=>x.estado==='pendiente').length;let grupos={};arr.forEach(x=>{let k=norm(x.local)+'|'+norm(x.visita);if(!grupos[k])grupos[k]={local:x.local,visita:x.visita,items:[]};grupos[k].items.push(x)});b.innerHTML=`<p class="info rp-summary"><span>✅ ${w}</span><span>❌ ${l}</span><span>⏳ ${p}</span></p>`+Object.values(grupos).reverse().map((g,i)=>{let st=estadoGrupo(g.items),id='statsDet'+i;return `<div class="pick rp-match-row" onclick="toggleStats('${id}')"><b>${st[0]} ${g.local} vs ${g.visita}<br><small>${g.items.length} pronóstico(s) guardado(s) · toca para ver historial</small></b><span class="${st[2]}">${st[1]}</span></div><div id="${id}" class="rp-detail-box" style="display:none">${g.items.map(x=>{let s=statLabel(x);return `<div class="pick rp-detail-row"><b>${s[0]} ${x.mercado}<br><small>${x.prob}% · Resultado: ${x.resultado||'pendiente'}</small></b><span class="${s[2]}">${s[1]}</span></div>`}).join('')}</div>`}).join('')}
-function rpShowTab(tab){document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));let idx=tab==='partidos'?0:tab==='ia'?1:2;let btn=document.querySelectorAll('.tab')[idx];if(btn)btn.classList.add('active');document.querySelectorAll('[data-tab]').forEach(el=>el.style.display=el.dataset.tab===tab?'':'none');let l=document.querySelector('.leagues'),d=document.querySelector('.dates');if(l)l.style.display=tab==='partidos'?'flex':'none';if(d)d.style.display=tab==='partidos'?'flex':'none';if(tab==='estadisticas')pintarStats()}
-window.addEventListener('load',function(){montarApp();setTimeout(()=>rpShowTab('partidos'),300)});
+/* =====================================================================
+   ROPROST PREDICT — INTERFAZ Y ARRANQUE  (app-main.js)
+   ===================================================================== */
+
+(() => {
+  "use strict";
+
+  // Color de confianza: rojo (70) -> ámbar (82) -> verde (95+)
+  function colorConfianza(pct) {
+    if (pct >= 90) return "var(--c-exc)";
+    if (pct >= 85) return "var(--c-alta)";
+    if (pct >= 80) return "var(--c-buena)";
+    if (pct >= 75) return "var(--c-ok)";
+    return "var(--c-baja)";
+  }
+
+  function chip(pct) {
+    return `<span class="chip" style="--chip:${colorConfianza(pct)}">${pct}%</span>`;
+  }
+
+  const $ = (sel) => document.querySelector(sel);
+
+  /* ---------- Render: Picks del Día ---------- */
+  function renderPicks(picks) {
+    if (!picks.length) {
+      return `<section class="bloque">
+        <h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente</span>Picks del Día</h2>
+        <p class="vacio">⚠️ Hoy no hay picks que superen el 80% de confianza. No forzamos recomendaciones.</p>
+      </section>`;
+    }
+    const items = picks.map((p, i) => `
+      <article class="pick">
+        <div class="pick-num">#${i + 1}</div>
+        <div class="pick-body">
+          <div class="pick-top">
+            <span class="pick-liga">${p.liga}</span>
+            ${chip(p.confianza)}
+          </div>
+          <h3 class="pick-partido">${p.partido}</h3>
+          <div class="pick-pron">${p.etiqueta}</div>
+          <p class="pick-motivo">${p.motivo}</p>
+        </div>
+      </article>`).join("");
+    return `<section class="bloque">
+      <h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 80%</span>Picks del Día</h2>
+      <div class="picks-grid">${items}</div>
+    </section>`;
+  }
+
+  /* ---------- Render: Top Apuestas ---------- */
+  function renderTop(bets) {
+    if (!bets.length) {
+      return `<section class="bloque">
+        <h2 class="bloque-titulo"><span class="eyebrow">Ranking del día</span>Top Apuestas</h2>
+        <p class="vacio">No se encontraron apuestas suficientemente seguras hoy.</p>
+      </section>`;
+    }
+    const filas = bets.map((b, i) => `
+      <li class="top-fila">
+        <span class="top-rank">${i + 1}</span>
+        <div class="top-info">
+          <span class="top-pron">${b.etiqueta}</span>
+          <span class="top-partido">${b.partido} · ${b.liga}</span>
+        </div>
+        ${chip(b.confianza)}
+      </li>`).join("");
+    return `<section class="bloque">
+      <h2 class="bloque-titulo"><span class="eyebrow">Ranking del día · de la más segura a la menos</span>Top Apuestas</h2>
+      <ul class="top-lista">${filas}</ul>
+    </section>`;
+  }
+
+  /* ---------- Render: lista de partidos (acordeón) ---------- */
+  function renderPartidos(partidos) {
+    const cards = partidos.map((p) => {
+      const idoneo = p.hayValor;
+      const detalle = idoneo
+        ? p.pronosticos.map(pr => `
+            <div class="pron">
+              <span class="pron-check">✅</span>
+              <span class="pron-text">${pr.etiqueta}</span>
+              ${chip(pr.confianza)}
+            </div>`).join("")
+        : `<p class="vacio">⚠️ No se encontraron pronósticos suficientemente seguros para este partido.</p>`;
+
+      return `
+      <article class="match" data-id="${p.id}">
+        <button class="match-head" aria-expanded="false">
+          <div class="match-meta">
+            <span class="match-liga">${p.liga}</span>
+            <span class="match-hora">${p.hora}</span>
+          </div>
+          <div class="match-teams">
+            <span>${p.local.name}</span>
+            <span class="vs">vs</span>
+            <span>${p.visitante.name}</span>
+          </div>
+          <div class="match-conf">
+            <span class="match-conf-label">Confianza IA</span>
+            ${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}
+            <span class="caret">▾</span>
+          </div>
+        </button>
+        <div class="match-body">
+          <div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>
+          ${detalle}
+        </div>
+      </article>`;
+    }).join("");
+
+    return `<section class="bloque">
+      <h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de hoy</h2>
+      <div class="matches">${cards}</div>
+    </section>`;
+  }
+
+  /* ---------- Interacción del acordeón ---------- */
+  function activarAcordeon() {
+    document.querySelectorAll(".match-head").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const card = btn.closest(".match");
+        const abierto = card.classList.toggle("open");
+        btn.setAttribute("aria-expanded", abierto);
+      });
+    });
+  }
+
+  /* ---------- Arranque ---------- */
+  async function init() {
+    const app = $("#app");
+    app.innerHTML = `<div class="loading">Analizando partidos…</div>`;
+
+    const { partidos, demo } = await RoprostData.obtenerPartidos();
+    const analizados = RoprostEngine.analizarTodos(partidos);
+    const picks = RoprostEngine.picksDelDia(analizados);
+    const top = RoprostEngine.topApuestas(analizados);
+
+    app.innerHTML = `
+      <header class="hero">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <h1>Roprost <span>Predict</span></h1>
+        </div>
+        <p class="hero-sub">Análisis selectivo. Pocas apuestas, máxima probabilidad real.</p>
+        ${demo ? `<div class="banner-demo">MODO DEMO · datos de ejemplo. Edita <code>roprost-live.js</code> con tu API KEY para datos reales.</div>` : ``}
+      </header>
+      ${renderPicks(picks)}
+      ${renderTop(top)}
+      ${renderPartidos(analizados)}
+      <footer class="pie">
+        <p>Las cifras son <strong>probabilidades estimadas</strong> por un modelo estadístico (Poisson), no garantías de acierto.</p>
+        <p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p>
+      </footer>
+    `;
+    activarAcordeon();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", init);
+  } else {
+    init();
+  }
+})();
