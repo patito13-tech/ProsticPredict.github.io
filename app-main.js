@@ -20,12 +20,22 @@
 
   const $ = (sel) => document.querySelector(sel);
 
+  function etiquetaDia(dia) {
+    return dia === "hoy" ? "hoy" : "mañana";
+  }
+
+  function tituloDia(dia) {
+    return dia === "hoy" ? "Hoy" : "Mañana";
+  }
+
   /* ---------- Render: Picks del Día ---------- */
-  function renderPicks(picks) {
+  function renderPicks(picks, dia = "manana") {
+    const diaTexto = etiquetaDia(dia);
+    const diaTitulo = tituloDia(dia);
     if (!picks.length) {
       return `<section class="bloque">
-        <h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente</span>Picks del Día</h2>
-        <p class="vacio">⚠️ Hoy no hay picks que superen el 80% de confianza. No forzamos recomendaciones.</p>
+        <h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente</span>Picks de ${diaTitulo}</h2>
+        <p class="vacio">⚠️ Para ${diaTexto} no hay picks que superen el 80% de confianza. No forzamos recomendaciones.</p>
       </section>`;
     }
     const items = picks.map((p, i) => `
@@ -42,17 +52,18 @@
         </div>
       </article>`).join("");
     return `<section class="bloque">
-      <h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 80%</span>Picks del Día</h2>
+      <h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 80%</span>Picks de ${diaTitulo}</h2>
       <div class="picks-grid">${items}</div>
     </section>`;
   }
 
   /* ---------- Render: Top Apuestas ---------- */
-  function renderTop(bets) {
+  function renderTop(bets, dia = "manana") {
+    const diaTexto = etiquetaDia(dia);
     if (!bets.length) {
       return `<section class="bloque">
-        <h2 class="bloque-titulo"><span class="eyebrow">Ranking del día</span>Top Apuestas</h2>
-        <p class="vacio">No se encontraron apuestas suficientemente seguras hoy.</p>
+        <h2 class="bloque-titulo"><span class="eyebrow">Ranking de ${diaTexto}</span>Top Apuestas</h2>
+        <p class="vacio">No se encontraron apuestas suficientemente seguras para ${diaTexto}.</p>
       </section>`;
     }
     const filas = bets.map((b, i) => `
@@ -65,13 +76,14 @@
         ${chip(b.confianza)}
       </li>`).join("");
     return `<section class="bloque">
-      <h2 class="bloque-titulo"><span class="eyebrow">Ranking del día · de la más segura a la menos</span>Top Apuestas</h2>
+      <h2 class="bloque-titulo"><span class="eyebrow">Ranking de ${diaTexto} · de la más segura a la menos</span>Top Apuestas</h2>
       <ul class="top-lista">${filas}</ul>
     </section>`;
   }
 
   /* ---------- Render: lista de partidos (acordeón) ---------- */
-  function renderPartidos(partidos) {
+  function renderPartidos(partidos, dia = "manana", fecha = "") {
+    const diaTexto = etiquetaDia(dia);
     const cards = partidos.map((p) => {
       const idoneo = p.hayValor;
       const detalle = idoneo
@@ -88,7 +100,7 @@
         <button class="match-head" aria-expanded="false">
           <div class="match-meta">
             <span class="match-liga">${p.liga}</span>
-            <span class="match-hora">${p.hora}</span>
+            <span class="match-hora">${p.fecha || fecha} · ${p.hora}</span>
           </div>
           <div class="match-teams">
             <span>${p.local.name}</span>
@@ -109,7 +121,7 @@
     }).join("");
 
     return `<section class="bloque">
-      <h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de hoy</h2>
+      <h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>
       <div class="matches">${cards}</div>
     </section>`;
   }
@@ -128,12 +140,13 @@
   /* ---------- Arranque ---------- */
   async function init() {
     const app = $("#app");
-    app.innerHTML = `<div class="loading">Analizando partidos…</div>`;
+    app.innerHTML = `<div class="loading">Analizando partidos de mañana…</div>`;
 
-    const { partidos, demo } = await RoprostData.obtenerPartidos();
+    const { partidos, demo, dia, fecha } = await RoprostData.obtenerPartidos();
     const analizados = RoprostEngine.analizarTodos(partidos);
     const picks = RoprostEngine.picksDelDia(analizados);
     const top = RoprostEngine.topApuestas(analizados);
+    const diaTexto = etiquetaDia(dia);
 
     app.innerHTML = `
       <header class="hero">
@@ -141,12 +154,12 @@
           <span class="brand-dot"></span>
           <h1>Roprost <span>Predict</span></h1>
         </div>
-        <p class="hero-sub">Análisis selectivo. Pocas apuestas, máxima probabilidad real.</p>
-        ${demo ? `<div class="banner-demo">MODO DEMO · datos de ejemplo. Edita <code>roprost-live.js</code> con tu API KEY para datos reales.</div>` : ``}
+        <p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p>
+        ${demo ? `<div class="banner-demo">MODO DEMO · no se encontraron datos reales para ${diaTexto}. Revisa tu API KEY o disponibilidad de APIfootball.</div>` : ``}
       </header>
-      ${renderPicks(picks)}
-      ${renderTop(top)}
-      ${renderPartidos(analizados)}
+      ${renderPicks(picks, dia)}
+      ${renderTop(top, dia)}
+      ${renderPartidos(analizados, dia, fecha)}
       <footer class="pie">
         <p>Las cifras son <strong>probabilidades estimadas</strong> por un modelo estadístico (Poisson), no garantías de acierto.</p>
         <p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p>
