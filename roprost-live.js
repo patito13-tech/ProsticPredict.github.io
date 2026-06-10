@@ -2,37 +2,23 @@
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
    ---------------------------------------------------------------------
    Conexión preparada para APIfootball (apiv3.apifootball.com).
-   Pega tu API KEY en CONFIG.API_KEY y mantén USAR_DEMO en false.
    ===================================================================== */
 
 const RoprostData = (() => {
 
   const CONFIG = {
-    // Pega aquí tu API KEY de APIfootball.
-    API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2cf3bb216ca2578938d3",
+    API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3",
     API_HOST: "https://apiv3.apifootball.com/",
 
-    // En APIfootball los IDs de ligas no son los mismos de API-Sports.
-    // Vacío = trae todos los partidos disponibles del día consultado.
+    // Vacío = trae todos los partidos disponibles de la fecha consultada.
     LIGAS: [],
 
-    // Cambia a "hoy" si quieres volver a ver partidos del día actual.
+    // Opciones: "hoy" o "manana".
     DIA_OBJETIVO: "manana",
 
+    // IMPORTANTE: false = no inventa partidos.
     USAR_DEMO: false
   };
-
-  /* ⚠️ NOTA DE SEGURIDAD:
-     En GitHub Pages cualquier API KEY escrita en JS queda visible para
-     cualquiera que abra el código fuente. Para uso personal puede servir,
-     pero para una web pública lo ideal es usar un proxy backend. */
-
-  const DEMO = [
-    { id: 1, liga: "Mundial de Clubes", fecha: "2026-06-11", hora: "17:00", local: { name: "Manchester City", gf: 2.6, ga: 0.8, cf: 7.2, ca: 3.1 }, visitante: { name: "Al Hilal", gf: 1.4, ga: 1.4, cf: 4.8, ca: 5.0 } },
-    { id: 2, liga: "Mundial de Clubes", fecha: "2026-06-11", hora: "20:00", local: { name: "Real Madrid", gf: 2.3, ga: 0.9, cf: 6.5, ca: 3.6 }, visitante: { name: "Monterrey", gf: 1.2, ga: 1.5, cf: 4.1, ca: 5.1 } },
-    { id: 3, liga: "Internacional", fecha: "2026-06-11", hora: "18:30", local: { name: "Inter", gf: 2.4, ga: 0.8, cf: 6.8, ca: 3.5 }, visitante: { name: "Lecce", gf: 0.9, ga: 1.9, cf: 3.8, ca: 6.2 } },
-    { id: 4, liga: "Internacional", fecha: "2026-06-11", hora: "19:30", local: { name: "Atlético Madrid", gf: 1.6, ga: 0.7, cf: 5.0, ca: 3.8 }, visitante: { name: "Cádiz", gf: 0.8, ga: 1.6, cf: 3.5, ca: 5.5 } }
-  ];
 
   function fechaPeru(offsetDias = 0) {
     const ahora = new Date();
@@ -141,17 +127,18 @@ const RoprostData = (() => {
   }
 
   async function obtenerPartidos() {
+    const base = { demo: false, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo(), error: null };
+
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
-      return { partidos: DEMO, demo: true, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
+      return { ...base, partidos: [], error: "API KEY no configurada." };
     }
 
     try {
       const partidos = await partidosReales();
-      if (!partidos.length) return { partidos: DEMO, demo: true, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
-      return { partidos, demo: false, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
+      return { ...base, partidos };
     } catch (e) {
-      console.error("Error con la API, usando demo:", e);
-      return { partidos: DEMO, demo: true, error: e.message, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo() };
+      console.error("Error con la API:", e);
+      return { ...base, partidos: [], error: e.message };
     }
   }
 
