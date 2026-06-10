@@ -7,9 +7,6 @@
 <style>
   *{box-sizing:border-box;margin:0;padding:0}
   body{background:#0d0d0d;color:#e8e8e8;font-family:Arial,sans-serif;min-height:100vh}
-  a{color:inherit;text-decoration:none}
-
-  /* HEADER */
   .header{display:flex;align-items:center;justify-content:space-between;padding:14px 20px;background:#111;border-bottom:0.5px solid #222;position:sticky;top:0;z-index:100}
   .logo{font-size:22px;font-weight:700;color:#fff;letter-spacing:-0.5px}
   .logo span{color:#00c853}
@@ -17,52 +14,39 @@
   .live-badge{background:#c62828;color:#fff;font-size:11px;font-weight:700;padding:4px 9px;border-radius:4px;animation:pulse 1.5s infinite}
   .date-label{font-size:12px;color:#555}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-
-  /* TABS */
   .tabs-wrap{background:#111;border-bottom:0.5px solid #1e1e1e;padding:0 20px;display:flex;gap:4px;overflow-x:auto}
   .tabs-wrap::-webkit-scrollbar{height:3px}
   .tabs-wrap::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
   .tab{padding:13px 16px;font-size:13px;font-weight:600;color:#555;cursor:pointer;border-bottom:2px solid transparent;white-space:nowrap;transition:all .2s}
   .tab:hover{color:#aaa}
   .tab.active{color:#00c853;border-bottom-color:#00c853}
-
-  /* MAIN */
   .main{max-width:820px;margin:0 auto;padding:20px 16px}
-
-  /* SECTION */
   .section{display:none}
   .section.active{display:block}
   .section-label{font-size:11px;color:#444;text-transform:uppercase;letter-spacing:1.2px;margin-bottom:12px}
-
-  /* MATCH CARD */
   .card{background:#161616;border:0.5px solid #222;border-radius:10px;padding:14px 16px;margin-bottom:8px;transition:border-color .2s}
   .card:hover{border-color:#333}
   .card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
-  .league-badge{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.8px;display:flex;align-items:center;gap:5px}
-  .league-dot{width:6px;height:6px;border-radius:50%;background:#333;display:inline-block}
+  .league-tag{font-size:11px;color:#555;text-transform:uppercase;letter-spacing:.8px}
   .time-tag{font-size:12px;color:#777;background:#1e1e1e;padding:3px 9px;border-radius:4px}
   .live-tag{font-size:12px;color:#ff5252;background:#1a0000;padding:3px 9px;border-radius:4px;font-weight:700}
   .teams-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
   .team-name{font-size:15px;font-weight:600;color:#fff;flex:1;line-height:1.3}
   .team-name.right{text-align:right}
-  .score-box{font-size:22px;font-weight:700;color:#fff;min-width:70px;text-align:center;background:#1a1a1a;border-radius:6px;padding:4px 8px}
+  .score-box{font-size:20px;font-weight:700;color:#fff;min-width:70px;text-align:center;background:#1a1a1a;border-radius:6px;padding:4px 8px}
   .vs-box{font-size:13px;color:#333;min-width:30px;text-align:center}
   .pred-row{display:flex;align-items:center;justify-content:space-between;margin-top:12px;gap:8px;flex-wrap:wrap}
-  .pred-text{font-size:13px;color:#aaa}
+  .pred-text{font-size:13px;color:#888}
   .conf-tag{font-size:13px;font-weight:700;padding:4px 12px;border-radius:6px}
   .conf-green{color:#00c853;background:#002200;border:0.5px solid #004400}
   .conf-amber{color:#ffab00;background:#1a1200;border:0.5px solid #332400}
   .conf-orange{color:#ff6d00;background:#1a0c00;border:0.5px solid #331800}
   .conf-bar{height:3px;border-radius:2px;background:#1e1e1e;margin-top:10px;overflow:hidden}
   .conf-fill{height:100%;border-radius:2px}
-
-  /* SEGUROS BANNER */
   .safe-banner{background:#001a00;border:0.5px solid #004400;border-radius:10px;padding:14px 18px;margin-bottom:16px;display:flex;align-items:center;gap:12px}
-  .safe-icon{font-size:24px}
+  .safe-icon{font-size:22px}
   .safe-title{font-size:15px;font-weight:700;color:#4cff82;margin-bottom:2px}
   .safe-sub{font-size:12px;color:#00c853}
-
-  /* STATS GRID */
   .stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:18px}
   .stat-card{background:#161616;border:0.5px solid #222;border-radius:10px;padding:16px;text-align:center}
   .stat-num{font-size:28px;font-weight:700;margin-bottom:4px}
@@ -70,34 +54,20 @@
   .green{color:#00c853}
   .red{color:#ff5252}
   .white{color:#fff}
-
-  /* HISTORY CARD */
   .hist-card{background:#161616;border:0.5px solid #222;border-radius:10px;padding:13px 16px;margin-bottom:8px}
   .hist-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px}
-  .hist-date{font-size:12px;color:#555}
+  .hist-meta{font-size:12px;color:#555}
   .result-badge{font-size:12px;font-weight:700;padding:4px 10px;border-radius:5px}
   .badge-won{color:#00c853;background:#002200;border:0.5px solid #004400}
   .badge-lost{color:#ff5252;background:#1a0000;border:0.5px solid #330000}
-  .hist-teams{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+  .hist-teams{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
   .hist-team{font-size:14px;font-weight:600;color:#ddd}
   .hist-result{font-size:14px;font-weight:700;color:#fff;background:#1a1a1a;padding:3px 10px;border-radius:5px}
-  .hist-pred{font-size:12px;color:#666}
-
-  /* EMPTY */
+  .hist-pred{font-size:12px;color:#555}
   .empty{text-align:center;padding:50px 20px;color:#333;font-size:14px}
-  .empty-icon{font-size:36px;margin-bottom:12px;opacity:.3}
-
-  /* FOOTER */
   .footer{text-align:center;padding:30px 16px;color:#333;font-size:12px;border-top:0.5px solid #1a1a1a;margin-top:20px}
   .footer span{color:#00c853}
-
-  /* RESPONSIVE */
-  @media(max-width:480px){
-    .team-name{font-size:13px}
-    .score-box{font-size:18px;min-width:56px}
-    .stats-grid{grid-template-columns:repeat(3,1fr)}
-    .stat-num{font-size:22px}
-  }
+  @media(max-width:480px){.team-name{font-size:13px}.score-box{font-size:17px;min-width:56px}.stat-num{font-size:22px}}
 </style>
 </head>
 <body>
@@ -106,205 +76,176 @@
   <div class="logo">Roprost <span>Predict</span></div>
   <div class="header-right">
     <span class="date-label" id="current-date"></span>
-    <span class="live-badge">⬤ EN VIVO</span>
+    <span class="live-badge">EN VIVO</span>
   </div>
 </div>
 
 <div class="tabs-wrap">
-  <div class="tab active" onclick="showTab('hoy',this)">📅 Hoy</div>
-  <div class="tab" onclick="showTab('manana',this)">🗓 Mañana</div>
-  <div class="tab" onclick="showTab('vivo',this)">🔴 En Vivo</div>
-  <div class="tab" onclick="showTab('seguros',this)">⭐ +70% Seguros</div>
-  <div class="tab" onclick="showTab('acertados',this)">✅ Acertados</div>
-  <div class="tab" onclick="showTab('perdidos',this)">❌ Perdidos</div>
+  <div class="tab active" onclick="showTab('hoy',this)">Hoy</div>
+  <div class="tab" onclick="showTab('manana',this)">Manana</div>
+  <div class="tab" onclick="showTab('vivo',this)">En Vivo</div>
+  <div class="tab" onclick="showTab('seguros',this)">+70% Seguros</div>
+  <div class="tab" onclick="showTab('acertados',this)">Acertados</div>
+  <div class="tab" onclick="showTab('perdidos',this)">Perdidos</div>
 </div>
 
 <div class="main">
 
-  <!-- HOY -->
   <div id="sec-hoy" class="section active">
     <div class="section-label" id="label-hoy"></div>
     <div id="cards-hoy"></div>
   </div>
 
-  <!-- MAÑANA -->
   <div id="sec-manana" class="section">
     <div class="section-label" id="label-manana"></div>
     <div id="cards-manana"></div>
   </div>
 
-  <!-- EN VIVO -->
   <div id="sec-vivo" class="section">
     <div class="section-label">Partidos en vivo ahora mismo</div>
     <div id="cards-vivo"></div>
   </div>
 
-  <!-- +70% SEGUROS -->
   <div id="sec-seguros" class="section">
     <div class="safe-banner">
-      <div class="safe-icon">🛡️</div>
+      <div class="safe-icon">[+]</div>
       <div>
         <div class="safe-title">Apuestas recomendadas</div>
-        <div class="safe-sub">Solo pronósticos con 70% o más de confianza</div>
+        <div class="safe-sub">Solo pronosticos con 70% o mas de confianza</div>
       </div>
     </div>
     <div class="section-label" id="label-seguros"></div>
     <div id="cards-seguros"></div>
   </div>
 
-  <!-- ACERTADOS -->
   <div id="sec-acertados" class="section">
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num green" id="stat-won">0</div><div class="stat-lbl">Acertados</div></div>
-      <div class="stat-card"><div class="stat-num white" id="stat-total">0</div><div class="stat-lbl">Total pronósticos</div></div>
-      <div class="stat-card"><div class="stat-num green" id="stat-pct">0%</div><div class="stat-lbl">Precisión</div></div>
+      <div class="stat-card"><div class="stat-num white" id="stat-total">0</div><div class="stat-lbl">Total</div></div>
+      <div class="stat-card"><div class="stat-num green" id="stat-pct">0%</div><div class="stat-lbl">Precision</div></div>
     </div>
     <div class="section-label">Historial de aciertos</div>
     <div id="cards-acertados"></div>
   </div>
 
-  <!-- PERDIDOS -->
   <div id="sec-perdidos" class="section">
     <div class="stats-grid">
       <div class="stat-card"><div class="stat-num red" id="stat-lost">0</div><div class="stat-lbl">Fallados</div></div>
-      <div class="stat-card"><div class="stat-num white" id="stat-total2">0</div><div class="stat-lbl">Total pronósticos</div></div>
+      <div class="stat-card"><div class="stat-num white" id="stat-total2">0</div><div class="stat-lbl">Total</div></div>
       <div class="stat-card"><div class="stat-num red" id="stat-fail-pct">0%</div><div class="stat-lbl">Tasa de fallo</div></div>
     </div>
-    <div class="section-label">Pronósticos fallados</div>
+    <div class="section-label">Pronosticos fallados</div>
     <div id="cards-perdidos"></div>
   </div>
 
 </div>
 
 <div class="footer">
-  <strong><span>Roprost Predict</span></strong> — Pronósticos deportivos · Solo para entretenimiento
+  <strong><span>Roprost Predict</span></strong> - Pronosticos deportivos - Solo para entretenimiento
 </div>
 
 <script>
-/* ===== DATOS ===== */
-/* Para actualizar: edita los arrays de partidos abajo */
-
-const HOY = [
-  {league:"Premier League", emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", time:"14:00", home:"Arsenal", away:"Chelsea", conf:82, pred:"Arsenal no pierde (1X)"},
-  {league:"La Liga",         emoji:"🇪🇸", time:"16:30", home:"Real Madrid", away:"Atlético Madrid", conf:74, pred:"Menos de 2.5 goles"},
-  {league:"Bundesliga",      emoji:"🇩🇪", time:"18:00", home:"Bayern Munich", away:"Dortmund", conf:68, pred:"Local gana"},
-  {league:"Serie A",         emoji:"🇮🇹", time:"20:45", home:"Juventus", away:"Inter Milan", conf:55, pred:"Ambos marcan"},
-  {league:"Ligue 1",         emoji:"🇫🇷", time:"21:00", home:"PSG", away:"Marseille", conf:78, pred:"PSG gana"},
+var HOY = [
+  {league:"Premier League", time:"14:00", home:"Arsenal", away:"Chelsea", conf:82, pred:"Arsenal no pierde (1X)"},
+  {league:"La Liga",         time:"16:30", home:"Real Madrid", away:"Atletico Madrid", conf:74, pred:"Menos de 2.5 goles"},
+  {league:"Bundesliga",      time:"18:00", home:"Bayern Munich", away:"Dortmund", conf:68, pred:"Local gana"},
+  {league:"Serie A",         time:"20:45", home:"Juventus", away:"Inter Milan", conf:55, pred:"Ambos marcan"},
+  {league:"Ligue 1",         time:"21:00", home:"PSG", away:"Marseille", conf:78, pred:"PSG gana"}
 ];
 
-const MANANA = [
-  {league:"Premier League", emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", time:"13:30", home:"Liverpool", away:"Man City", conf:71, pred:"Ambos marcan"},
-  {league:"La Liga",         emoji:"🇪🇸", time:"15:00", home:"Barcelona", away:"Sevilla", conf:85, pred:"Barcelona gana"},
-  {league:"Bundesliga",      emoji:"🇩🇪", time:"17:30", home:"Leverkusen", away:"RB Leipzig", conf:62, pred:"Más de 2.5 goles"},
-  {league:"Champions League",emoji:"⭐", time:"21:00", home:"Man City", away:"Real Madrid", conf:58, pred:"Empate al descanso"},
+var MANANA = [
+  {league:"Premier League", time:"13:30", home:"Liverpool", away:"Man City", conf:71, pred:"Ambos marcan"},
+  {league:"La Liga",         time:"15:00", home:"Barcelona", away:"Sevilla", conf:85, pred:"Barcelona gana"},
+  {league:"Bundesliga",      time:"17:30", home:"Leverkusen", away:"RB Leipzig", conf:62, pred:"Mas de 2.5 goles"},
+  {league:"Champions League",time:"21:00", home:"Man City", away:"Real Madrid", conf:58, pred:"Empate al descanso"}
 ];
 
-const VIVO = [
-  {league:"Premier League", emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", time:"65'", home:"Tottenham", away:"Newcastle", score:"1 - 1", conf:77, pred:"Empate al final"},
-  {league:"La Liga",         emoji:"🇪🇸", time:"43'", home:"Valencia", away:"Betis",     score:"0 - 0", conf:65, pred:"Menos de 2.5 goles"},
+var VIVO = [
+  {league:"Premier League", time:"65'", home:"Tottenham", away:"Newcastle", score:"1 - 1", conf:77, pred:"Empate al final"},
+  {league:"La Liga",         time:"43'", home:"Valencia", away:"Betis", score:"0 - 0", conf:65, pred:"Menos de 2.5 goles"}
 ];
 
-const ACERTADOS = [
-  {league:"Premier League", emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", date:"09 Jun", home:"Man United", away:"West Ham",  pred:"Man United gana",      result:"2 - 0"},
-  {league:"La Liga",         emoji:"🇪🇸", date:"09 Jun", home:"Real Madrid", away:"Villarreal",  pred:"Más de 2.5 goles",    result:"3 - 1"},
-  {league:"Bundesliga",      emoji:"🇩🇪", date:"08 Jun", home:"Bayern",       away:"Freiburg",    pred:"Bayern gana",          result:"4 - 0"},
-  {league:"Serie A",         emoji:"🇮🇹", date:"08 Jun", home:"AC Milan",     away:"Roma",        pred:"Ambos marcan",         result:"2 - 1"},
-  {league:"Ligue 1",         emoji:"🇫🇷", date:"07 Jun", home:"PSG",          away:"Lyon",        pred:"PSG gana",             result:"3 - 0"},
-  {league:"Premier League", emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", date:"06 Jun", home:"Chelsea",      away:"Arsenal",     pred:"Menos de 2.5 goles",   result:"1 - 0"},
-  {league:"Champions League",emoji:"⭐", date:"05 Jun", home:"Barcelona",    away:"Inter Milan", pred:"Barcelona no pierde",  result:"2 - 2"},
+var ACERTADOS = [
+  {league:"Premier League", date:"09 Jun", home:"Man United", away:"West Ham",  pred:"Man United gana",     result:"2 - 0"},
+  {league:"La Liga",         date:"09 Jun", home:"Real Madrid", away:"Villarreal", pred:"Mas de 2.5 goles",  result:"3 - 1"},
+  {league:"Bundesliga",      date:"08 Jun", home:"Bayern",      away:"Freiburg",  pred:"Bayern gana",        result:"4 - 0"},
+  {league:"Serie A",         date:"08 Jun", home:"AC Milan",    away:"Roma",      pred:"Ambos marcan",       result:"2 - 1"},
+  {league:"Ligue 1",         date:"07 Jun", home:"PSG",         away:"Lyon",      pred:"PSG gana",           result:"3 - 0"},
+  {league:"Premier League", date:"06 Jun", home:"Chelsea",     away:"Arsenal",   pred:"Menos de 2.5 goles", result:"1 - 0"},
+  {league:"Champions League",date:"05 Jun", home:"Barcelona",   away:"Inter",     pred:"Barcelona no pierde",result:"2 - 2"}
 ];
 
-const PERDIDOS = [
-  {league:"Premier League", emoji:"🏴󠁧󠁢󠁥󠁮󠁧󠁿", date:"08 Jun", home:"Everton",  away:"Brentford", pred:"Empate",                result:"2 - 1"},
-  {league:"La Liga",         emoji:"🇪🇸", date:"07 Jun", home:"Atlético", away:"Girona",    pred:"Menos de 2.5 goles",    result:"3 - 2"},
-  {league:"Champions League",emoji:"⭐", date:"06 Jun", home:"Bayern",   away:"PSG",       pred:"Bayern gana",            result:"1 - 2"},
+var PERDIDOS = [
+  {league:"Premier League", date:"08 Jun", home:"Everton",  away:"Brentford", pred:"Empate",             result:"2 - 1"},
+  {league:"La Liga",         date:"07 Jun", home:"Atletico", away:"Girona",    pred:"Menos de 2.5 goles", result:"3 - 2"},
+  {league:"Champions League",date:"06 Jun", home:"Bayern",   away:"PSG",       pred:"Bayern gana",        result:"1 - 2"}
 ];
 
-/* ===== HELPERS ===== */
-function confClass(c){ return c>=70?"conf-green":c>=55?"conf-amber":"conf-orange" }
-function confColor(c){ return c>=70?"#00c853":c>=55?"#ffab00":"#ff6d00" }
+function confClass(c){ return c>=70?"conf-green":c>=55?"conf-amber":"conf-orange"; }
+function confColor(c){ return c>=70?"#00c853":c>=55?"#ffab00":"#ff6d00"; }
 
 function matchCard(m){
-  const timeEl = m.score
-    ? `<span class="live-tag">⬤ ${m.time}</span>`
-    : `<span class="time-tag">${m.time}</span>`;
-  const middle = m.score
-    ? `<div class="score-box">${m.score}</div>`
-    : `<div class="vs-box">vs</div>`;
-  return `
-  <div class="card">
-    <div class="card-top">
-      <span class="league-badge"><span class="league-dot"></span>${m.emoji} ${m.league}</span>
-      ${timeEl}
-    </div>
-    <div class="teams-row">
-      <div class="team-name">${m.home}</div>
-      ${middle}
-      <div class="team-name right">${m.away}</div>
-    </div>
-    <div class="pred-row">
-      <span class="pred-text">📊 ${m.pred}</span>
-      <span class="conf-tag ${confClass(m.conf)}">${m.conf}% confianza</span>
-    </div>
-    <div class="conf-bar"><div class="conf-fill" style="width:${m.conf}%;background:${confColor(m.conf)}"></div></div>
-  </div>`;
+  var timeEl = m.score
+    ? '<span class="live-tag">EN VIVO ' + m.time + '</span>'
+    : '<span class="time-tag">' + m.time + '</span>';
+  var middle = m.score
+    ? '<div class="score-box">' + m.score + '</div>'
+    : '<div class="vs-box">vs</div>';
+  return '<div class="card">'
+    + '<div class="card-top"><span class="league-tag">' + m.league + '</span>' + timeEl + '</div>'
+    + '<div class="teams-row"><div class="team-name">' + m.home + '</div>' + middle + '<div class="team-name right">' + m.away + '</div></div>'
+    + '<div class="pred-row"><span class="pred-text">' + m.pred + '</span><span class="conf-tag ' + confClass(m.conf) + '">' + m.conf + '% confianza</span></div>'
+    + '<div class="conf-bar"><div class="conf-fill" style="width:' + m.conf + '%;background:' + confColor(m.conf) + '"></div></div>'
+    + '</div>';
 }
 
 function histCard(m, won){
-  return `
-  <div class="hist-card">
-    <div class="hist-top">
-      <span class="league-badge">${m.emoji} ${m.league} · ${m.date}</span>
-      <span class="result-badge ${won?'badge-won':'badge-lost'}">${won?'✓ Acertado':'✗ Fallado'}</span>
-    </div>
-    <div class="hist-teams">
-      <span class="hist-team">${m.home}</span>
-      <span class="hist-result">${m.result}</span>
-      <span class="hist-team" style="text-align:right">${m.away}</span>
-    </div>
-    <div class="hist-pred">Pronóstico: ${m.pred}</div>
-  </div>`;
+  return '<div class="hist-card">'
+    + '<div class="hist-top"><span class="hist-meta">' + m.league + ' - ' + m.date + '</span>'
+    + '<span class="result-badge ' + (won?'badge-won':'badge-lost') + '">' + (won?'Acertado':'Fallado') + '</span></div>'
+    + '<div class="hist-teams"><span class="hist-team">' + m.home + '</span><span class="hist-result">' + m.result + '</span><span class="hist-team" style="text-align:right">' + m.away + '</span></div>'
+    + '<div class="hist-pred">Pronostico: ' + m.pred + '</div>'
+    + '</div>';
 }
 
-/* ===== RENDER ===== */
 function render(){
-  const now = new Date();
-  const opts = {weekday:'long',year:'numeric',month:'long',day:'numeric'};
+  var now = new Date();
+  var opts = {weekday:'long',year:'numeric',month:'long',day:'numeric'};
   document.getElementById('current-date').textContent = now.toLocaleDateString('es-ES',opts);
 
-  const tomorrow = new Date(now);
+  var tomorrow = new Date(now);
   tomorrow.setDate(tomorrow.getDate()+1);
-  const todayStr  = now.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
-  const tomStr    = tomorrow.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+  var todayStr = now.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
+  var tomStr   = tomorrow.toLocaleDateString('es-ES',{day:'numeric',month:'long',year:'numeric'});
 
-  document.getElementById('label-hoy').textContent     = 'Partidos de hoy — '+todayStr;
-  document.getElementById('label-manana').textContent  = 'Partidos de mañana — '+tomStr;
+  document.getElementById('label-hoy').textContent    = 'Partidos de hoy - ' + todayStr;
+  document.getElementById('label-manana').textContent = 'Partidos de manana - ' + tomStr;
 
   document.getElementById('cards-hoy').innerHTML    = HOY.map(matchCard).join('');
   document.getElementById('cards-manana').innerHTML = MANANA.map(matchCard).join('');
   document.getElementById('cards-vivo').innerHTML   = VIVO.length
     ? VIVO.map(matchCard).join('')
-    : '<div class="empty"><div class="empty-icon">📺</div>No hay partidos en vivo ahora mismo</div>';
+    : '<div class="empty">No hay partidos en vivo ahora mismo</div>';
 
-  const seguros = [...HOY,...MANANA].filter(m=>m.conf>=70);
-  document.getElementById('label-seguros').textContent = seguros.length+' apuestas recomendadas para hoy y mañana';
+  var seguros = HOY.concat(MANANA).filter(function(m){ return m.conf >= 70; });
+  document.getElementById('label-seguros').textContent = seguros.length + ' apuestas recomendadas para hoy y manana';
   document.getElementById('cards-seguros').innerHTML = seguros.map(matchCard).join('');
 
-  document.getElementById('cards-acertados').innerHTML = ACERTADOS.map(m=>histCard(m,true)).join('');
-  document.getElementById('cards-perdidos').innerHTML  = PERDIDOS.map(m=>histCard(m,false)).join('');
+  document.getElementById('cards-acertados').innerHTML = ACERTADOS.map(function(m){ return histCard(m,true); }).join('');
+  document.getElementById('cards-perdidos').innerHTML  = PERDIDOS.map(function(m){ return histCard(m,false); }).join('');
 
-  const total = ACERTADOS.length + PERDIDOS.length;
-  document.getElementById('stat-won').textContent   = ACERTADOS.length;
-  document.getElementById('stat-total').textContent  = total;
-  document.getElementById('stat-pct').textContent    = Math.round(ACERTADOS.length/total*100)+'%';
-  document.getElementById('stat-lost').textContent   = PERDIDOS.length;
-  document.getElementById('stat-total2').textContent = total;
-  document.getElementById('stat-fail-pct').textContent = Math.round(PERDIDOS.length/total*100)+'%';
+  var total = ACERTADOS.length + PERDIDOS.length;
+  document.getElementById('stat-won').textContent      = ACERTADOS.length;
+  document.getElementById('stat-total').textContent    = total;
+  document.getElementById('stat-pct').textContent      = Math.round(ACERTADOS.length/total*100) + '%';
+  document.getElementById('stat-lost').textContent     = PERDIDOS.length;
+  document.getElementById('stat-total2').textContent   = total;
+  document.getElementById('stat-fail-pct').textContent = Math.round(PERDIDOS.length/total*100) + '%';
 }
 
 function showTab(id, el){
-  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.section').forEach(function(s){ s.classList.remove('active'); });
+  document.querySelectorAll('.tab').forEach(function(t){ t.classList.remove('active'); });
   document.getElementById('sec-'+id).classList.add('active');
   el.classList.add('active');
 }
