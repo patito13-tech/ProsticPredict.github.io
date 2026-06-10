@@ -9,7 +9,7 @@ const RoprostData = (() => {
 
   const CONFIG = {
     // Pega aquí tu API KEY de APIfootball.
-    API_KEY: "PEGA_TU_API_KEY_AQUI",
+    API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3",
     API_HOST: "https://apiv3.apifootball.com/",
 
     // En APIfootball los IDs de ligas no son los mismos de API-Sports.
