@@ -149,6 +149,37 @@
     $("#filtro-liga")?.addEventListener("change", aplicarFiltros);
   }
 
+  /* ---- Pestañas (navegación por secciones) ---- */
+  function heroHTML(diaTexto) {
+    return `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>`;
+  }
+
+  function footerHTML() {
+    return `<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong> por un modelo estadístico (Poisson), no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
+  }
+
+  function construirTabs(tabs) {
+    const nav = tabs.map((t, i) => `<button class="tab-btn${i === 0 ? " active" : ""}" data-tab="${t.id}" role="tab" aria-selected="${i === 0 ? "true" : "false"}">${t.icono ? `<span class="tab-ico">${t.icono}</span>` : ""}${t.label}</button>`).join("");
+    const panels = tabs.map((t, i) => `<div class="tab-panel${i === 0 ? " active" : ""}" id="panel-${t.id}" role="tabpanel">${t.html}</div>`).join("");
+    return `<nav class="tabs" role="tablist">${nav}</nav><div class="tab-panels">${panels}</div>`;
+  }
+
+  function activarTabs() {
+    const btns = [...document.querySelectorAll(".tab-btn")];
+    btns.forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.tab;
+        btns.forEach(b => { const on = b === btn; b.classList.toggle("active", on); b.setAttribute("aria-selected", on ? "true" : "false"); });
+        document.querySelectorAll(".tab-panel").forEach(p => p.classList.toggle("active", p.id === `panel-${id}`));
+        const barra = document.querySelector(".tabs");
+        if (barra) {
+          const y = barra.getBoundingClientRect().top + window.scrollY - 4;
+          if (window.scrollY > y) window.scrollTo({ top: y, behavior: "smooth" });
+        }
+      };
+    });
+  }
+
   async function init() {
     const app = $("#app");
     app.innerHTML = `<div class="loading">Analizando partidos de mañana…</div>`;
@@ -159,7 +190,12 @@
     const diaTexto = etiquetaDia(dia);
 
     if (!partidos.length) {
-      app.innerHTML = `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>${renderSinPartidos(dia, fecha, error)}${renderSeguimiento(state.seguimiento)}<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong>, no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
+      const tabs = [
+        { id: "partidos", label: "Partidos", icono: "⚽", html: renderSinPartidos(dia, fecha, error) },
+        { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(state.seguimiento) }
+      ];
+      app.innerHTML = heroHTML(diaTexto) + construirTabs(tabs) + footerHTML();
+      activarTabs();
       activarAcordeon();
       return;
     }
@@ -167,7 +203,14 @@
     state.analizados = RoprostEngine.analizarTodos(partidos);
     const picks = RoprostEngine.picksDelDia(state.analizados);
     const top = RoprostEngine.topApuestas(state.analizados);
-    app.innerHTML = `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>${renderPicks(picks, dia)}${renderTop(top, dia)}${renderFiltros(state.analizados)}${renderPartidos(state.analizados, dia, fecha)}${renderSeguimiento(state.seguimiento)}<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong> por un modelo estadístico (Poisson), no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
+    const tabs = [
+      { id: "picks", label: "Picks", icono: "🎯", html: renderPicks(picks, dia) },
+      { id: "top", label: "Top", icono: "🏆", html: renderTop(top, dia) },
+      { id: "partidos", label: "Partidos", icono: "⚽", html: renderFiltros(state.analizados) + renderPartidos(state.analizados, dia, fecha) },
+      { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(state.seguimiento) }
+    ];
+    app.innerHTML = heroHTML(diaTexto) + construirTabs(tabs) + footerHTML();
+    activarTabs();
     activarAcordeon();
   }
 
