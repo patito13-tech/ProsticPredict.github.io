@@ -2,12 +2,7 @@
    ROPROST PREDICT — MOTOR DE PREDICCIÓN  (roprost-logic.js)
    ---------------------------------------------------------------------
    Modelo estadístico REAL basado en la distribución de Poisson.
-   No inventa porcentajes: los calcula a partir de los datos del equipo
-   (goles a favor/en contra, córners, ventaja de local).
-
-   IMPORTANTE / HONESTIDAD:
-   Ningún modelo puede garantizar aciertos. Estos porcentajes son
-   PROBABILIDADES ESTIMADAS, no certezas.
+   No inventa porcentajes: los calcula a partir de los datos del equipo.
    ===================================================================== */
 
 const RoprostEngine = (() => {
@@ -96,6 +91,13 @@ const RoprostEngine = (() => {
     return "Última opción";
   }
 
+  function etiquetaRiesgo(pct) {
+    if (pct >= 85) return { texto: "Muy segura", clase: "riesgo-verde" };
+    if (pct >= 80) return { texto: "Segura", clase: "riesgo-amarillo" };
+    if (pct >= 75) return { texto: "Moderada", clase: "riesgo-naranja" };
+    return { texto: "Evitar", clase: "riesgo-rojo" };
+  }
+
   function mejorLineaMayor(lineas, lambda, umbral, tipo) {
     let elegida = null;
     for (const linea of lineas) {
@@ -117,8 +119,6 @@ const RoprostEngine = (() => {
     if (!over && !under) return null;
     if (over && !under) return over;
     if (!over && under) return under;
-
-    // Regla clave: nunca mostrar Más y Menos del mismo mercado en un partido.
     if (tipoPartido === "CERRADO") return under;
     if (tipoPartido === "ABIERTO") return over;
     return over.prob >= under.prob ? over : under;
@@ -158,7 +158,6 @@ const RoprostEngine = (() => {
 
     const candidatos = [];
 
-    // --- GOLES: solo una opción, nunca Más y Menos juntos ---
     const overGoles = mejorLineaMayor(CONFIG.LINEAS_GOLES, lambdaGoles, U, "goles");
     const underGoles = mejorLineaMenor(CONFIG.LINEAS_GOLES, lambdaGoles, U, "goles");
     const golesUnico = elegirMercadoUnico(overGoles, underGoles, tipoPartido);
@@ -170,7 +169,6 @@ const RoprostEngine = (() => {
       });
     }
 
-    // --- CÓRNERS: solo una opción, nunca Más y Menos juntos ---
     const overCorners = mejorLineaMayor(CONFIG.LINEAS_CORNERS, lambdaCorners, U, "córners");
     const underCorners = mejorLineaMenor(CONFIG.LINEAS_CORNERS, lambdaCorners, U, "córners");
     const cornerUnico = elegirMercadoUnico(overCorners, underCorners, tipoPartido);
@@ -182,7 +180,6 @@ const RoprostEngine = (() => {
       });
     }
 
-    // --- DOBLE OPORTUNIDAD: reemplaza mercados repetidos o contradictorios ---
     const doble = mejorDobleOportunidad(mercado, local, visitante, U);
     if (doble) candidatos.push(doble);
 
@@ -195,7 +192,6 @@ const RoprostEngine = (() => {
 
     candidatos.sort((a, b) => (b.prob - a.prob) || (prioriza(b) - prioriza(a)));
 
-    // Seguridad extra: máximo una opción por mercado.
     const seleccionados = [];
     const mercadosUsados = new Set();
 
@@ -206,12 +202,18 @@ const RoprostEngine = (() => {
       if (seleccionados.length >= CONFIG.MAX_PRONOSTICOS_PARTIDO) break;
     }
 
-    const pronosticos = seleccionados.map(c => ({
-      etiqueta: c.etiqueta,
-      confianza: Math.round(c.prob),
-      nivel: etiquetaConfianza(c.prob),
-      mercado: c.mercado
-    }));
+    const pronosticos = seleccionados.map(c => {
+      const confianza = Math.round(c.prob);
+      const riesgo = etiquetaRiesgo(confianza);
+      return {
+        etiqueta: c.etiqueta,
+        confianza,
+        nivel: etiquetaConfianza(c.prob),
+        riesgo: riesgo.texto,
+        riesgoClase: riesgo.clase,
+        mercado: c.mercado
+      };
+    });
 
     const confianzaGeneral = pronosticos.length
       ? Math.round(pronosticos.reduce((s, p) => s + p.confianza, 0) / pronosticos.length)
@@ -222,6 +224,13 @@ const RoprostEngine = (() => {
       tipoPartido,
       lambdaGoles: +lambdaGoles.toFixed(2),
       lambdaCorners: +lambdaCorners.toFixed(2),
+      probVictoria: {
+        local: Math.round(mercado.local * 100),
+        empate: Math.round(mercado.empate * 100),
+        visitante: Math.round(mercado.visita * 100),
+        dobleLocal: Math.round(mercado.dobleLocal * 100),
+        dobleVisitante: Math.round(mercado.dobleVisita * 100)
+      },
       pronosticos,
       confianzaGeneral,
       hayValor: pronosticos.length > 0
@@ -269,6 +278,31 @@ const RoprostEngine = (() => {
     return todos.slice(0, CONFIG.MAX_PICKS_DIA);
   }
 
+  function evaluarPronostico(pr, partidoTerminado) {
+    const gl = Number(partidoTerminado.golesLocal);
+    const gv = Number(partidoTerminado.golesVisitante);
+    if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+    const totalGoles = gl + gv;
+    const texto = pr.etiqueta || "";
+
+    if (pr.mercado === "Goles") {
+      const linea = parseFloat(texto.replace(",", ".").match(/\d+(\.\d+)?/)?.[0]);
+      if (!Number.isFinite(linea)) return "pendiente";
+      if (texto.startsWith("Más")) return totalGoles > linea ? "acertado" : "fallado";
+      if (texto.startsWith("Menos")) return totalGoles < linea ? "acertado" : "fallado";
+    }
+
+    if (pr.mercado === "Doble oportunidad") {
+      const local = gl > gv;
+      const empate = gl === gv;
+      const visitante = gv > gl;
+      if (texto.includes("(1X)")) return (local || empate) ? "acertado" : "fallado";
+      if (texto.includes("(X2)")) return (visitante || empate) ? "acertado" : "fallado";
+    }
+
+    return "pendiente";
+  }
+
   function motivoPick(p, pr) {
     if (pr.mercado === "Goles" && pr.etiqueta.startsWith("Más")) {
       return `El modelo proyecta ~${p.lambdaGoles} goles totales. Se muestra solo una línea de goles para evitar mercados contradictorios.`;
@@ -288,7 +322,9 @@ const RoprostEngine = (() => {
     analizarTodos,
     topApuestas,
     picksDelDia,
-    etiquetaConfianza
+    etiquetaConfianza,
+    etiquetaRiesgo,
+    evaluarPronostico
   };
 })();
 
