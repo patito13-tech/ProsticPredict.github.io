@@ -6,19 +6,14 @@
   "use strict";
 
   const $ = (sel) => document.querySelector(sel);
-  const state = { analizados: [], seguimiento: [], dia: "manana", fecha: "" };
+  const state = { analizados: [], analizadosHoy: [], seguimiento: [], dia: "manana", fecha: "" };
 
   /* =====================================================================
      HISTORIAL PERSISTENTE (24 h) — localStorage
-     ---------------------------------------------------------------------
-     - Guarda los pronósticos dados a cada partido (snapshot).
-     - Cuando el partido está EN VIVO o FINALIZADO, guarda el resultado.
-     - Cada registro vive 24 h y luego se borra solo.
-     - La evaluación combinada (1 fallo = perdida) la hace el motor.
      ===================================================================== */
   const Hist = (() => {
     const KEY = "rp_hist24_v1";
-    const TTL = 24 * 60 * 60 * 1000; // 24 horas
+    const TTL = 24 * 60 * 60 * 1000;
 
     const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } };
     const save = (o) => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
@@ -33,7 +28,6 @@
       return o;
     }
 
-    // Guarda/actualiza los pronósticos de los partidos analizados de hoy/mañana
     function snapshotPredicciones(analizados) {
       const o = purge(load());
       analizados.forEach(p => {
@@ -56,16 +50,14 @@
       return o;
     }
 
-    // Vuelca resultados de los partidos en vivo / finalizados
     function actualizarResultados(seguimiento) {
       const o = purge(load());
       seguimiento.forEach(s => {
         if (!s.id) return;
         let e = o[s.id];
         if (!e) {
-          // partido sin snapshot previo: lo analizamos al vuelo para tener pronósticos
           const an = RoprostEngine.analizarPartido(s);
-          if (!an.hayValor) return; // sin pronósticos evaluables → no lo guardamos
+          if (!an.hayValor) return;
           e = {
             ts: Date.now(), id: s.id, liga: s.liga, fecha: s.fecha, hora: s.hora,
             local: { name: s.local.name, logo: s.local.logo },
@@ -82,7 +74,6 @@
       return o;
     }
 
-    // Devuelve los registros (dentro de 24 h) que ya tienen estado en vivo o finalizado
     function entradasVisibles() {
       const o = purge(load());
       return Object.values(o)
@@ -90,9 +81,31 @@
         .sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`));
     }
 
-    return { snapshotPredicciones, actualizarResultados, entradasVisibles };
+    // NUEVO: todos los registros con pronósticos (incluye pendientes)
+    function todasEntradasConProns() {
+      const o = purge(load());
+      return Object.values(o)
+        .filter(e => e.pronosticos && e.pronosticos.length)
+        .sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`));
+    }
+
+    return { snapshotPredicciones, actualizarResultados, entradasVisibles, todasEntradasConProns };
   })();
 
+  // ── Helpers de fecha ──────────────────────────────────────────────
+  function fechaHoy() {
+    const d = new Date();
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
+  function fechaManana() {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.getFullYear() + "-" +
+      String(d.getMonth() + 1).padStart(2, "0") + "-" +
+      String(d.getDate()).padStart(2, "0");
+  }
 
   function colorConfianza(pct) {
     if (pct >= 90) return "var(--c-exc)";
@@ -110,7 +123,9 @@
   function tituloDia(dia) { return dia === "hoy" ? "Hoy" : "Mañana"; }
 
   function logo(src, nombre) {
-    return src ? `<img class="team-logo" src="${src}" alt="${nombre}" loading="lazy">` : `<span class="team-logo team-logo-fallback">${(nombre || "?").slice(0,1)}</span>`;
+    return src
+      ? `<img class="team-logo" src="${src}" alt="${nombre}" loading="lazy">`
+      : `<span class="team-logo team-logo-fallback">${(nombre || "?").slice(0,1)}</span>`;
   }
 
   function renderSinPartidos(dia = "manana", fecha = "", error = null) {
@@ -118,7 +133,7 @@
     return `<section class="bloque">
       <h2 class="bloque-titulo"><span class="eyebrow">Datos reales</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>
       <p class="vacio">⚠️ No se encontraron partidos reales para ${diaTexto} en la API.</p>
-      ${error ? `<p class="vacio">Detalle técnico: ${error}</p>` : ``}
+      ${error ? `<p class="vacio">Detalle técnico: ${error}</p>` : ""}
     </section>`;
   }
 
@@ -141,9 +156,9 @@
     return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Ranking de ${diaTexto} · de la más segura a la menos</span>Top Apuestas</h2><ul class="top-lista">${filas}</ul></section>`;
   }
 
-  function renderFiltros(partidos) {
+  function renderFiltros(partidos, sufijo = "") {
     const ligas = [...new Set(partidos.map(p => p.liga || "Sin liga"))].sort();
-    return `<section class="bloque filtros-bloque"><h2 class="bloque-titulo"><span class="eyebrow">Buscar y filtrar</span>Explorar partidos</h2><div class="filtros"><input id="buscador-partidos" class="filtro-input" type="search" placeholder="Buscar equipo o liga..."><select id="filtro-liga" class="filtro-select"><option value="">Todas las ligas</option>${ligas.map(l => `<option value="${l}">${l}</option>`).join("")}</select></div></section>`;
+    return `<section class="bloque filtros-bloque"><h2 class="bloque-titulo"><span class="eyebrow">Buscar y filtrar</span>Explorar partidos</h2><div class="filtros"><input id="buscador-partidos${sufijo}" class="filtro-input" type="search" placeholder="Buscar equipo o liga..."><select id="filtro-liga${sufijo}" class="filtro-select"><option value="">Todas las ligas</option>${ligas.map(l => `<option value="${l}">${l}</option>`).join("")}</select></div></section>`;
   }
 
   function renderProbabilidades(p) {
@@ -165,7 +180,7 @@
     return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha || fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderProbabilidades(p)}${detalle}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
   }
 
-  function renderPartidos(partidos, dia = "manana", fecha = "") {
+  function renderPartidos(partidos, dia = "manana", fecha = "", sufijo = "") {
     const diaTexto = etiquetaDia(dia);
     const ordenados = [...partidos].sort((a, b) => {
       const ligaA = (a.liga || "Sin liga").localeCompare(b.liga || "Sin liga");
@@ -177,7 +192,7 @@
       const total = grupos[liga].length;
       return `<div class="liga-grupo ${index === 0 ? "open" : ""}"><button class="liga-head" aria-expanded="${index === 0 ? "true" : "false"}"><span class="liga-nombre">${liga}</span><span class="liga-cantidad">${total} partido${total === 1 ? "" : "s"}</span><span class="liga-caret">▾</span></button><div class="liga-body"><div class="matches">${grupos[liga].map(p => cardPartido(p, fecha)).join("")}</div></div></div>`;
     }).join("");
-    return `<section class="bloque" id="bloque-partidos"><h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>${bloquesLiga || `<p class="vacio">No hay partidos con ese filtro.</p>`}</section>`;
+    return `<section class="bloque" id="bloque-partidos${sufijo}"><h2 class="bloque-titulo"><span class="eyebrow">Todos los partidos</span>Partidos de ${diaTexto}${fecha ? ` · ${fecha}` : ""}</h2>${bloquesLiga || `<p class="vacio">No hay partidos con ese filtro.</p>`}</section>`;
   }
 
   function estadoTexto(estado) {
@@ -188,28 +203,46 @@
   }
 
   function renderSeguimiento(entradas = []) {
-    if (!entradas.length) {
+    // Mostrar también pendientes para que no aparezca vacío
+    const entradasMostrar = entradas.length > 0 ? entradas : Hist.todasEntradasConProns();
+
+    if (!entradasMostrar.length) {
       return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2><p class="vacio">Aún no hay partidos en vivo o finalizados con pronósticos guardados. Aparecerán aquí en cuanto empiecen y se conservarán 24 horas.</p></section>`;
     }
 
-    let ganados = 0, perdidos = 0, vivos = 0;
+    let ganados = 0, perdidos = 0, vivos = 0, pendientes = 0;
 
-    const rows = entradas.slice(0, 30).map((p, index) => {
-      const estadoCombinada = RoprostEngine.evaluarCombinada(p.pronosticos, p);
+    const rows = entradasMostrar.slice(0, 30).map((p, index) => {
+      const tieneMarcador = (p.golesLocal !== "" && p.golesVisitante !== "" && p.golesLocal !== undefined && p.golesVisitante !== undefined);
+      const estadoCombinada = p.finalizado
+        ? RoprostEngine.evaluarCombinada(p.pronosticos, p)
+        : p.enVivo ? "vivo" : "pendiente";
+
       if (estadoCombinada === "acertado") ganados++;
-      if (estadoCombinada === "fallado") perdidos++;
-      if (estadoCombinada === "vivo") vivos++;
-      const marcador = (p.golesLocal !== "" && p.golesVisitante !== "" && p.golesLocal !== undefined && p.golesVisitante !== undefined) ? `${p.golesLocal}-${p.golesVisitante}` : "vs";
+      else if (estadoCombinada === "fallado") perdidos++;
+      else if (estadoCombinada === "vivo") vivos++;
+      else pendientes++;
+
+      const marcador = tieneMarcador ? `${p.golesLocal}-${p.golesVisitante}` : "vs";
       const pronosticos = p.pronosticos && p.pronosticos.length ? p.pronosticos : [];
       const detalle = pronosticos.length ? pronosticos.map(pr => {
-        const estadoPr = p.enVivo ? "vivo" : RoprostEngine.evaluarPronostico(pr, p);
+        const estadoPr = p.finalizado
+          ? RoprostEngine.evaluarPronostico(pr, p)
+          : p.enVivo ? "vivo" : "pendiente";
         const etiquetaEstado = (estadoPr === "pendiente" && pr.mercado === "Córners") ? "No evaluable" : estadoTexto(estadoPr);
         return `<div class="historial-pron ${estadoPr}"><span>${pr.etiqueta}</span><b>${etiquetaEstado}</b></div>`;
       }).join("") : `<div class="historial-pron pendiente"><span>Sin pronósticos evaluables</span><b>Pendiente</b></div>`;
+
+      const etiquetaCard = p.enVivo
+        ? "🔴 En vivo"
+        : p.finalizado
+          ? estadoTexto(estadoCombinada)
+          : `⏳ ${p.hora || "Pendiente"}`;
+
       return `<article class="historial-card ${estadoCombinada} ${index === 0 ? "open" : ""}">
         <button class="historial-head" aria-expanded="${index === 0 ? "true" : "false"}">
           <div><strong>${p.local.name} ${marcador} ${p.visitante.name}</strong><span>${p.liga} · ${p.fecha} · ${p.hora}</span></div>
-          <b>${estadoTexto(estadoCombinada)}</b>
+          <b>${etiquetaCard}</b>
           <span class="historial-caret">▾</span>
         </button>
         <div class="historial-body">${detalle}<p class="historial-nota">La apuesta completa cuenta como perdida si falla al menos un pronóstico. Los córners sin datos quedan como "No evaluable". Registro disponible 24 h.</p></div>
@@ -217,30 +250,55 @@
     }).join("");
 
     const total = ganados + perdidos;
-    const precision = total ? Math.round((ganados / total) * 100) : 0;
+    const precision = total ? Math.round((ganados / total) * 100) : null;
+    const precisionStr = precision !== null
+      ? `<div><strong>${precision}%</strong><span>Precisión</span></div>`
+      : "";
 
-    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2><div class="historial-resumen"><div><strong>${ganados}</strong><span>Ganados</span></div><div><strong>${perdidos}</strong><span>Perdidos</span></div><div><strong>${vivos}</strong><span>En vivo</span></div><div><strong>${precision}%</strong><span>Precisión</span></div></div><div class="historial-lista">${rows}</div></section>`;
+    return `<section class="bloque">
+      <h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2>
+      <div class="historial-resumen">
+        <div><strong>${ganados}</strong><span>✅ Ganados</span></div>
+        <div><strong>${perdidos}</strong><span>❌ Perdidos</span></div>
+        <div><strong>${vivos}</strong><span>🔴 En vivo</span></div>
+        <div><strong>${pendientes}</strong><span>⏳ Pendientes</span></div>
+        ${precisionStr}
+      </div>
+      <div class="historial-lista">${rows}</div>
+    </section>`;
   }
 
-  function aplicarFiltros() {
-    const q = ($("#buscador-partidos")?.value || "").toLowerCase().trim();
-    const liga = $("#filtro-liga")?.value || "";
-    const filtrados = state.analizados.filter(p => { const texto = `${p.liga} ${p.local.name} ${p.visitante.name}`.toLowerCase(); return (!q || texto.includes(q)) && (!liga || p.liga === liga); });
-    const cont = $("#bloque-partidos");
-    if (cont) { cont.outerHTML = renderPartidos(filtrados, state.dia, state.fecha); activarAcordeon(); }
+  function aplicarFiltros(fuente, dia, sufijo) {
+    const q = ($(`#buscador-partidos${sufijo}`)?.value || "").toLowerCase().trim();
+    const liga = $(`#filtro-liga${sufijo}`)?.value || "";
+    const filtrados = fuente.filter(p => {
+      const texto = `${p.liga} ${p.local.name} ${p.visitante.name}`.toLowerCase();
+      return (!q || texto.includes(q)) && (!liga || p.liga === liga);
+    });
+    const cont = $(`#bloque-partidos${sufijo}`);
+    if (cont) {
+      cont.outerHTML = renderPartidos(filtrados, dia, state.fecha, sufijo);
+      activarAcordeon();
+      // Re-enganchar filtros tras el re-render
+      $(`#buscador-partidos${sufijo}`)?.addEventListener("input", () => aplicarFiltros(fuente, dia, sufijo));
+      $(`#filtro-liga${sufijo}`)?.addEventListener("change", () => aplicarFiltros(fuente, dia, sufijo));
+    }
   }
 
   function activarAcordeon() {
-    document.querySelectorAll(".liga-head").forEach(btn => { btn.onclick = () => { const grupo = btn.closest(".liga-grupo"); const abierto = grupo.classList.toggle("open"); btn.setAttribute("aria-expanded", abierto); }; });
-    document.querySelectorAll(".match-head").forEach(btn => { btn.onclick = () => { const card = btn.closest(".match"); const abierto = card.classList.toggle("open"); btn.setAttribute("aria-expanded", abierto); }; });
-    document.querySelectorAll(".historial-head").forEach(btn => { btn.onclick = () => { const card = btn.closest(".historial-card"); const abierto = card.classList.toggle("open"); btn.setAttribute("aria-expanded", abierto); }; });
-    $("#buscador-partidos")?.addEventListener("input", aplicarFiltros);
-    $("#filtro-liga")?.addEventListener("change", aplicarFiltros);
+    document.querySelectorAll(".liga-head").forEach(btn => {
+      btn.onclick = () => { const g = btn.closest(".liga-grupo"); const a = g.classList.toggle("open"); btn.setAttribute("aria-expanded", a); };
+    });
+    document.querySelectorAll(".match-head").forEach(btn => {
+      btn.onclick = () => { const c = btn.closest(".match"); const a = c.classList.toggle("open"); btn.setAttribute("aria-expanded", a); };
+    });
+    document.querySelectorAll(".historial-head").forEach(btn => {
+      btn.onclick = () => { const c = btn.closest(".historial-card"); const a = c.classList.toggle("open"); btn.setAttribute("aria-expanded", a); };
+    });
   }
 
-  /* ---- Pestañas (navegación por secciones) ---- */
-  function heroHTML(diaTexto) {
-    return `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>`;
+  function heroHTML() {
+    return `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de hoy y mañana. Pocas apuestas, máxima probabilidad real.</p></header>`;
   }
 
   function footerHTML() {
@@ -271,42 +329,64 @@
 
   async function init() {
     const app = $("#app");
-    app.innerHTML = `<div class="loading">Analizando partidos de mañana…</div>`;
+    app.innerHTML = `<div class="loading">Analizando partidos…</div>`;
+
+    // Obtener partidos (la API devuelve hoy O mañana según su lógica interna)
     const { partidos, seguimiento, finalizados, dia, fecha, error } = await RoprostData.obtenerPartidos();
-    state.dia = dia;
-    state.fecha = fecha;
+
+    state.dia    = dia;
+    state.fecha  = fecha;
     state.seguimiento = seguimiento || finalizados || [];
-    const diaTexto = etiquetaDia(dia);
 
-    if (!partidos.length) {
-      Hist.actualizarResultados(state.seguimiento);
-      const tabs = [
-        { id: "partidos", label: "Partidos", icono: "⚽", html: renderSinPartidos(dia, fecha, error) },
-        { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(Hist.entradasVisibles()) }
-      ];
-      app.innerHTML = heroHTML(diaTexto) + construirTabs(tabs) + footerHTML();
-      activarTabs();
-      activarAcordeon();
-      return;
-    }
+    const hoyStr    = fechaHoy();
+    const mananaStr = fechaManana();
 
-    state.analizados = RoprostEngine.analizarTodos(partidos);
-    // Persistencia 24 h: guardamos los pronósticos de hoy y volcamos resultados.
-    Hist.snapshotPredicciones(state.analizados);
+    // Separar partidos por fecha
+    const partidosHoy    = partidos.filter(p => p.fecha && p.fecha.startsWith(hoyStr));
+    const partidosManana = partidos.filter(p => p.fecha && p.fecha.startsWith(mananaStr));
+    // Si ninguno tiene fecha explícita, usar todos en el día detectado
+    const todosSinFecha = partidos.filter(p => !p.fecha);
+
+    const fuenteHoy    = partidosHoy.length    ? partidosHoy    : (dia === "hoy"    ? todosSinFecha : []);
+    const fuenteManana = partidosManana.length ? partidosManana : (dia === "manana" ? todosSinFecha : partidos);
+
+    state.analizadosHoy = RoprostEngine.analizarTodos(fuenteHoy);
+    state.analizados    = RoprostEngine.analizarTodos(fuenteManana);
+
+    Hist.snapshotPredicciones([...state.analizados, ...state.analizadosHoy]);
     Hist.actualizarResultados(state.seguimiento);
     const entradasHist = Hist.entradasVisibles();
 
     const picks = RoprostEngine.picksDelDia(state.analizados);
-    const top = RoprostEngine.topApuestas(state.analizados);
+    const top   = RoprostEngine.topApuestas(state.analizados);
+
+    // Panel Hoy
+    const htmlHoy = state.analizadosHoy.length
+      ? renderFiltros(state.analizadosHoy, "-hoy") + renderPartidos(state.analizadosHoy, "hoy", hoyStr, "-hoy")
+      : renderSinPartidos("hoy", hoyStr);
+
+    // Panel Mañana
+    const htmlManana = state.analizados.length
+      ? renderFiltros(state.analizados, "-manana") + renderPartidos(state.analizados, "manana", fecha, "-manana")
+      : renderSinPartidos("manana", fecha, error);
+
     const tabs = [
-      { id: "picks", label: "Picks", icono: "🎯", html: renderPicks(picks, dia) },
-      { id: "top", label: "Top", icono: "🏆", html: renderTop(top, dia) },
-      { id: "partidos", label: "Partidos", icono: "⚽", html: renderFiltros(state.analizados) + renderPartidos(state.analizados, dia, fecha) },
-      { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(entradasHist) }
+      { id: "picks",           label: "Picks",           icono: "🎯", html: renderPicks(picks, dia) },
+      { id: "top",             label: "Top",             icono: "🏆", html: renderTop(top, dia) },
+      { id: "partidos-hoy",    label: "Partidos Hoy",    icono: "📅", html: htmlHoy },
+      { id: "partidos-manana", label: "Partidos Mañana", icono: "📅", html: htmlManana },
+      { id: "historial",       label: "Resultados",      icono: "📊", html: renderSeguimiento(entradasHist) }
     ];
-    app.innerHTML = heroHTML(diaTexto) + construirTabs(tabs) + footerHTML();
+
+    app.innerHTML = heroHTML() + construirTabs(tabs) + footerHTML();
     activarTabs();
     activarAcordeon();
+
+    // Enganchar filtros de ambas pestañas
+    $("#buscador-partidos-hoy")?.addEventListener("input",    () => aplicarFiltros(state.analizadosHoy, "hoy",    "-hoy"));
+    $("#filtro-liga-hoy")?.addEventListener("change",         () => aplicarFiltros(state.analizadosHoy, "hoy",    "-hoy"));
+    $("#buscador-partidos-manana")?.addEventListener("input", () => aplicarFiltros(state.analizados,    "manana", "-manana"));
+    $("#filtro-liga-manana")?.addEventListener("change",      () => aplicarFiltros(state.analizados,    "manana", "-manana"));
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", init);
