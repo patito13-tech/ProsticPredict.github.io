@@ -8,6 +8,92 @@
   const $ = (sel) => document.querySelector(sel);
   const state = { analizados: [], seguimiento: [], dia: "manana", fecha: "" };
 
+  /* =====================================================================
+     HISTORIAL PERSISTENTE (24 h) — localStorage
+     ---------------------------------------------------------------------
+     - Guarda los pronósticos dados a cada partido (snapshot).
+     - Cuando el partido está EN VIVO o FINALIZADO, guarda el resultado.
+     - Cada registro vive 24 h y luego se borra solo.
+     - La evaluación combinada (1 fallo = perdida) la hace el motor.
+     ===================================================================== */
+  const Hist = (() => {
+    const KEY = "rp_hist24_v1";
+    const TTL = 24 * 60 * 60 * 1000; // 24 horas
+
+    const load = () => { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; } };
+    const save = (o) => { try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) {} };
+
+    function purge(o) {
+      const now = Date.now();
+      let changed = false;
+      for (const k of Object.keys(o)) {
+        if (now - (o[k].ts || 0) > TTL) { delete o[k]; changed = true; }
+      }
+      if (changed) save(o);
+      return o;
+    }
+
+    // Guarda/actualiza los pronósticos de los partidos analizados de hoy/mañana
+    function snapshotPredicciones(analizados) {
+      const o = purge(load());
+      analizados.forEach(p => {
+        if (!p.id || !p.hayValor) return;
+        const prev = o[p.id] || {};
+        o[p.id] = {
+          ...prev,
+          ts: prev.ts || Date.now(),
+          id: p.id, liga: p.liga, fecha: p.fecha, hora: p.hora,
+          local: { name: p.local.name, logo: p.local.logo },
+          visitante: { name: p.visitante.name, logo: p.visitante.logo },
+          tipoPartido: p.tipoPartido,
+          pronosticos: p.pronosticos,
+          golesLocal: prev.golesLocal, golesVisitante: prev.golesVisitante,
+          cornersLocal: prev.cornersLocal, cornersVisitante: prev.cornersVisitante,
+          enVivo: prev.enVivo || false, finalizado: prev.finalizado || false
+        };
+      });
+      save(o);
+      return o;
+    }
+
+    // Vuelca resultados de los partidos en vivo / finalizados
+    function actualizarResultados(seguimiento) {
+      const o = purge(load());
+      seguimiento.forEach(s => {
+        if (!s.id) return;
+        let e = o[s.id];
+        if (!e) {
+          // partido sin snapshot previo: lo analizamos al vuelo para tener pronósticos
+          const an = RoprostEngine.analizarPartido(s);
+          if (!an.hayValor) return; // sin pronósticos evaluables → no lo guardamos
+          e = {
+            ts: Date.now(), id: s.id, liga: s.liga, fecha: s.fecha, hora: s.hora,
+            local: { name: s.local.name, logo: s.local.logo },
+            visitante: { name: s.visitante.name, logo: s.visitante.logo },
+            tipoPartido: an.tipoPartido, pronosticos: an.pronosticos
+          };
+        }
+        e.golesLocal = s.golesLocal; e.golesVisitante = s.golesVisitante;
+        e.cornersLocal = s.cornersLocal; e.cornersVisitante = s.cornersVisitante;
+        e.enVivo = s.enVivo; e.finalizado = s.finalizado;
+        o[s.id] = e;
+      });
+      save(o);
+      return o;
+    }
+
+    // Devuelve los registros (dentro de 24 h) que ya tienen estado en vivo o finalizado
+    function entradasVisibles() {
+      const o = purge(load());
+      return Object.values(o)
+        .filter(e => (e.enVivo || e.finalizado) && e.pronosticos && e.pronosticos.length)
+        .sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`));
+    }
+
+    return { snapshotPredicciones, actualizarResultados, entradasVisibles };
+  })();
+
+
   function colorConfianza(pct) {
     if (pct >= 90) return "var(--c-exc)";
     if (pct >= 85) return "var(--c-alta)";
@@ -72,7 +158,10 @@
 
   function cardPartido(p, fecha = "") {
     const idoneo = p.hayValor;
-    const detalle = idoneo ? p.pronosticos.map(pr => `<div class="pron"><span class="pron-check">✅</span><span class="pron-text">${pr.etiqueta}<small class="riesgo ${pr.riesgoClase || ""}">${pr.riesgo || pr.nivel}</small></span>${chip(pr.confianza)}</div>`).join("") : `<p class="vacio">⚠️ No se encontraron pronósticos suficientemente seguros para este partido.</p>`;
+    const motivoEstilo = "display:block;margin-top:4px;font-size:11.5px;line-height:1.5;color:var(--txt-faint)";
+    const detalle = idoneo
+      ? p.pronosticos.map(pr => `<div class="pron"><span class="pron-check">✅</span><span class="pron-text">${pr.etiqueta}<small class="riesgo ${pr.riesgoClase || ""}">${pr.riesgo || pr.nivel}</small>${pr.motivo ? `<small style="${motivoEstilo}">${pr.motivo}</small>` : ""}</span>${chip(pr.confianza)}</div>`).join("")
+      : `<p class="vacio">${p.sinDatos ? "🔒 Sin pick seguro" : "⚠️ Sin pick seguro"} · ${p.motivoGeneral || "No hay líneas que superen el umbral de confianza para este partido."}</p>`;
     return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha || fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderProbabilidades(p)}${detalle}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
   }
 
@@ -98,15 +187,14 @@
     return "Pendiente";
   }
 
-  function renderSeguimiento(seguimiento = []) {
-    if (!seguimiento.length) {
-      return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo</span>Resultados / En vivo</h2><p class="vacio">Aún no hay partidos en vivo o finalizados recientes disponibles en la API.</p></section>`;
+  function renderSeguimiento(entradas = []) {
+    if (!entradas.length) {
+      return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2><p class="vacio">Aún no hay partidos en vivo o finalizados con pronósticos guardados. Aparecerán aquí en cuanto empiecen y se conservarán 24 horas.</p></section>`;
     }
 
-    const analizados = RoprostEngine.analizarTodos(seguimiento);
     let ganados = 0, perdidos = 0, vivos = 0;
 
-    const rows = analizados.slice(0, 20).map((p, index) => {
+    const rows = entradas.slice(0, 30).map((p, index) => {
       const estadoCombinada = RoprostEngine.evaluarCombinada(p.pronosticos, p);
       if (estadoCombinada === "acertado") ganados++;
       if (estadoCombinada === "fallado") perdidos++;
@@ -115,7 +203,8 @@
       const pronosticos = p.pronosticos && p.pronosticos.length ? p.pronosticos : [];
       const detalle = pronosticos.length ? pronosticos.map(pr => {
         const estadoPr = p.enVivo ? "vivo" : RoprostEngine.evaluarPronostico(pr, p);
-        return `<div class="historial-pron ${estadoPr}"><span>${pr.etiqueta}</span><b>${estadoTexto(estadoPr)}</b></div>`;
+        const etiquetaEstado = (estadoPr === "pendiente" && pr.mercado === "Córners") ? "No evaluable" : estadoTexto(estadoPr);
+        return `<div class="historial-pron ${estadoPr}"><span>${pr.etiqueta}</span><b>${etiquetaEstado}</b></div>`;
       }).join("") : `<div class="historial-pron pendiente"><span>Sin pronósticos evaluables</span><b>Pendiente</b></div>`;
       return `<article class="historial-card ${estadoCombinada} ${index === 0 ? "open" : ""}">
         <button class="historial-head" aria-expanded="${index === 0 ? "true" : "false"}">
@@ -123,14 +212,14 @@
           <b>${estadoTexto(estadoCombinada)}</b>
           <span class="historial-caret">▾</span>
         </button>
-        <div class="historial-body">${detalle}<p class="historial-nota">La apuesta completa cuenta como perdida si falla al menos un pronóstico.</p></div>
+        <div class="historial-body">${detalle}<p class="historial-nota">La apuesta completa cuenta como perdida si falla al menos un pronóstico. Los córners sin datos quedan como "No evaluable". Registro disponible 24 h.</p></div>
       </article>`;
     }).join("");
 
     const total = ganados + perdidos;
     const precision = total ? Math.round((ganados / total) * 100) : 0;
 
-    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo</span>Resultados / En vivo</h2><div class="historial-resumen"><div><strong>${ganados}</strong><span>Ganados</span></div><div><strong>${perdidos}</strong><span>Perdidos</span></div><div><strong>${vivos}</strong><span>En vivo</span></div><div><strong>${precision}%</strong><span>Precisión</span></div></div><div class="historial-lista">${rows}</div></section>`;
+    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2><div class="historial-resumen"><div><strong>${ganados}</strong><span>Ganados</span></div><div><strong>${perdidos}</strong><span>Perdidos</span></div><div><strong>${vivos}</strong><span>En vivo</span></div><div><strong>${precision}%</strong><span>Precisión</span></div></div><div class="historial-lista">${rows}</div></section>`;
   }
 
   function aplicarFiltros() {
@@ -190,9 +279,10 @@
     const diaTexto = etiquetaDia(dia);
 
     if (!partidos.length) {
+      Hist.actualizarResultados(state.seguimiento);
       const tabs = [
         { id: "partidos", label: "Partidos", icono: "⚽", html: renderSinPartidos(dia, fecha, error) },
-        { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(state.seguimiento) }
+        { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(Hist.entradasVisibles()) }
       ];
       app.innerHTML = heroHTML(diaTexto) + construirTabs(tabs) + footerHTML();
       activarTabs();
@@ -201,13 +291,18 @@
     }
 
     state.analizados = RoprostEngine.analizarTodos(partidos);
+    // Persistencia 24 h: guardamos los pronósticos de hoy y volcamos resultados.
+    Hist.snapshotPredicciones(state.analizados);
+    Hist.actualizarResultados(state.seguimiento);
+    const entradasHist = Hist.entradasVisibles();
+
     const picks = RoprostEngine.picksDelDia(state.analizados);
     const top = RoprostEngine.topApuestas(state.analizados);
     const tabs = [
       { id: "picks", label: "Picks", icono: "🎯", html: renderPicks(picks, dia) },
       { id: "top", label: "Top", icono: "🏆", html: renderTop(top, dia) },
       { id: "partidos", label: "Partidos", icono: "⚽", html: renderFiltros(state.analizados) + renderPartidos(state.analizados, dia, fecha) },
-      { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(state.seguimiento) }
+      { id: "historial", label: "Resultados", icono: "📊", html: renderSeguimiento(entradasHist) }
     ];
     app.innerHTML = heroHTML(diaTexto) + construirTabs(tabs) + footerHTML();
     activarTabs();

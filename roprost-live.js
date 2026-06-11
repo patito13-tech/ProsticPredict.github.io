@@ -51,11 +51,17 @@ const RoprostData = (() => {
 
   function calcularStatsDesdeStanding(row) {
     const pj = Math.max(1, n(row?.overall_league_payed, 0));
-    const gf = +(n(row?.overall_league_GF, 0) / pj).toFixed(2) || 1.2;
-    const ga = +(n(row?.overall_league_GA, 0) / pj).toFixed(2) || 1.2;
-    const cf = +(4.5 + (gf - 1.2) * 1.6).toFixed(1);
-    const ca = +(4.5 + (ga - 1.2) * 1.6).toFixed(1);
-    return { gf, ga, cf, ca };
+    const gfRaw = n(row?.overall_league_GF, 0) / pj;
+    const gaRaw = n(row?.overall_league_GA, 0) / pj;
+    const gf = +(gfRaw > 0 ? gfRaw : 1.2).toFixed(2);
+    const ga = +(gaRaw > 0 ? gaRaw : 1.2).toFixed(2);
+    // La tabla de posiciones (plan gratis) no trae córners: se ESTIMAN a
+    // partir del perfil ofensivo/defensivo, con más amplitud que antes para
+    // que el ritmo de córners varíe de un partido a otro.
+    const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
+    const cf = +clamp(2.5 + gf * 2.2, 2.5, 8.5).toFixed(1);
+    const ca = +clamp(2.5 + ga * 2.2, 2.5, 8.5).toFixed(1);
+    return { gf, ga, cf, ca, statsReales: true };
   }
 
   async function standingPorLiga(leagueId) {
@@ -78,7 +84,7 @@ const RoprostData = (() => {
   function statsEquipo(fx, mapa, lado) {
     const id = lado === "home" ? fx.match_hometeam_id : fx.match_awayteam_id;
     const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
-    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 };
+    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
   }
 
   function logoEquipo(fx, lado) {
@@ -133,7 +139,7 @@ const RoprostData = (() => {
     }
   }
 
-  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 }) {
+  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }) {
     const estado = estadoNormalizado(fx);
     const cornersLocal = valorCorner(fx, "home");
     const cornersVisitante = valorCorner(fx, "away");
