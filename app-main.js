@@ -6,7 +6,7 @@
   "use strict";
 
   const $ = (sel) => document.querySelector(sel);
-  const state = { analizados: [], finalizados: [], dia: "manana", fecha: "" };
+  const state = { analizados: [], seguimiento: [], dia: "manana", fecha: "" };
 
   function colorConfianza(pct) {
     if (pct >= 90) return "var(--c-exc)";
@@ -124,21 +124,14 @@
     <article class="match" data-id="${p.id}">
       <button class="match-head" aria-expanded="false">
         <div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha || fecha} · ${p.hora}</span></div>
-        <div class="match-teams">
-          <span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span>
-          <span class="vs">vs</span>
-          <span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span>
-        </div>
+        <div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div>
         <div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div>
       </button>
       <div class="match-body">
         <div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>
         ${renderProbabilidades(p)}
         ${detalle}
-        <div class="ultimos-grid">
-          ${renderUltimos(p.local.name, p.local.ultimos)}
-          ${renderUltimos(p.visitante.name, p.visitante.ultimos)}
-        </div>
+        <div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div>
       </div>
     </article>`;
   }
@@ -171,18 +164,40 @@
     </section>`;
   }
 
-  function renderFinalizados(finalizados = []) {
-    if (!finalizados.length) return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Tiempo real</span>Finalizados recientes</h2><p class="vacio">Aún no hay partidos finalizados recientes disponibles en la API.</p></section>`;
-    const analizados = RoprostEngine.analizarTodos(finalizados);
-    const rows = analizados.slice(0, 12).map(p => {
+  function renderSeguimiento(seguimiento = []) {
+    if (!seguimiento.length) {
+      return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo</span>Resultados / En vivo</h2><p class="vacio">Aún no hay partidos en vivo o finalizados recientes disponibles en la API.</p></section>`;
+    }
+
+    const analizados = RoprostEngine.analizarTodos(seguimiento);
+    let ganados = 0, perdidos = 0, vivos = 0;
+
+    const rows = analizados.slice(0, 20).map(p => {
       const pr = p.pronosticos[0];
-      const estado = pr ? RoprostEngine.evaluarPronostico(pr, p) : "pendiente";
+      const estado = p.enVivo ? "vivo" : (pr ? RoprostEngine.evaluarPronostico(pr, p) : "pendiente");
+      if (estado === "acertado") ganados++;
+      if (estado === "fallado") perdidos++;
+      if (estado === "vivo") vivos++;
+      const marcador = (p.golesLocal !== "" && p.golesVisitante !== "" && p.golesLocal !== undefined && p.golesVisitante !== undefined) ? `${p.golesLocal}-${p.golesVisitante}` : "vs";
+      const label = estado === "acertado" ? "Acertado" : estado === "fallado" ? "Fallado" : estado === "vivo" ? "En vivo" : "Pendiente";
       return `<li class="resultado ${estado}">
-        <div><strong>${p.local.name} ${p.golesLocal}-${p.golesVisitante} ${p.visitante.name}</strong><span>${p.liga} · ${p.fecha}</span></div>
-        <div><span>${pr ? pr.etiqueta : "Sin pick"}</span><b>${estado === "acertado" ? "Acertado" : estado === "fallado" ? "Fallado" : "Pendiente"}</b></div>
+        <div><strong>${p.local.name} ${marcador} ${p.visitante.name}</strong><span>${p.liga} · ${p.fecha} · ${p.hora}</span></div>
+        <div><span>${pr ? pr.etiqueta : "Sin pick evaluable"}</span><b>${label}</b></div>
       </li>`;
     }).join("");
-    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Tiempo real</span>Finalizados recientes</h2><ul class="resultados-lista">${rows}</ul></section>`;
+
+    const total = ganados + perdidos;
+    const precision = total ? Math.round((ganados / total) * 100) : 0;
+
+    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo</span>Resultados / En vivo</h2>
+      <div class="historial-resumen">
+        <div><strong>${ganados}</strong><span>Ganados</span></div>
+        <div><strong>${perdidos}</strong><span>Perdidos</span></div>
+        <div><strong>${vivos}</strong><span>En vivo</span></div>
+        <div><strong>${precision}%</strong><span>Precisión</span></div>
+      </div>
+      <ul class="resultados-lista">${rows}</ul>
+    </section>`;
   }
 
   function aplicarFiltros() {
@@ -193,26 +208,15 @@
       return (!q || texto.includes(q)) && (!liga || p.liga === liga);
     });
     const cont = $("#bloque-partidos");
-    if (cont) {
-      cont.outerHTML = renderPartidos(filtrados, state.dia, state.fecha);
-      activarAcordeon();
-    }
+    if (cont) { cont.outerHTML = renderPartidos(filtrados, state.dia, state.fecha); activarAcordeon(); }
   }
 
   function activarAcordeon() {
     document.querySelectorAll(".liga-head").forEach(btn => {
-      btn.onclick = () => {
-        const grupo = btn.closest(".liga-grupo");
-        const abierto = grupo.classList.toggle("open");
-        btn.setAttribute("aria-expanded", abierto);
-      };
+      btn.onclick = () => { const grupo = btn.closest(".liga-grupo"); const abierto = grupo.classList.toggle("open"); btn.setAttribute("aria-expanded", abierto); };
     });
     document.querySelectorAll(".match-head").forEach(btn => {
-      btn.onclick = () => {
-        const card = btn.closest(".match");
-        const abierto = card.classList.toggle("open");
-        btn.setAttribute("aria-expanded", abierto);
-      };
+      btn.onclick = () => { const card = btn.closest(".match"); const abierto = card.classList.toggle("open"); btn.setAttribute("aria-expanded", abierto); };
     });
     $("#buscador-partidos")?.addEventListener("input", aplicarFiltros);
     $("#filtro-liga")?.addEventListener("change", aplicarFiltros);
@@ -221,19 +225,22 @@
   async function init() {
     const app = $("#app");
     app.innerHTML = `<div class="loading">Analizando partidos de mañana…</div>`;
-    const { partidos, finalizados, dia, fecha, error } = await RoprostData.obtenerPartidos();
-    state.dia = dia; state.fecha = fecha; state.finalizados = finalizados || [];
+    const { partidos, seguimiento, finalizados, dia, fecha, error } = await RoprostData.obtenerPartidos();
+    state.dia = dia;
+    state.fecha = fecha;
+    state.seguimiento = seguimiento || finalizados || [];
     const diaTexto = etiquetaDia(dia);
 
     if (!partidos.length) {
-      app.innerHTML = `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>${renderSinPartidos(dia, fecha, error)}${renderFinalizados(state.finalizados)}<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong>, no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
+      app.innerHTML = `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>${renderSinPartidos(dia, fecha, error)}${renderSeguimiento(state.seguimiento)}<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong>, no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
       return;
     }
+
     state.analizados = RoprostEngine.analizarTodos(partidos);
     const picks = RoprostEngine.picksDelDia(state.analizados);
     const top = RoprostEngine.topApuestas(state.analizados);
 
-    app.innerHTML = `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>${renderPicks(picks, dia)}${renderTop(top, dia)}${renderFiltros(state.analizados)}${renderPartidos(state.analizados, dia, fecha)}${renderFinalizados(state.finalizados)}<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong> por un modelo estadístico (Poisson), no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
+    app.innerHTML = `<header class="hero"><div class="brand"><span class="brand-dot"></span><h1>Roprost <span>Predict</span></h1></div><p class="hero-sub">Análisis selectivo de partidos de ${diaTexto}. Pocas apuestas, máxima probabilidad real.</p></header>${renderPicks(picks, dia)}${renderTop(top, dia)}${renderFiltros(state.analizados)}${renderPartidos(state.analizados, dia, fecha)}${renderSeguimiento(state.seguimiento)}<footer class="pie"><p>Las cifras son <strong>probabilidades estimadas</strong> por un modelo estadístico (Poisson), no garantías de acierto.</p><p class="pie-juego">Juega con responsabilidad · +18 · El juego puede generar adicción.</p></footer>`;
     activarAcordeon();
   }
 
