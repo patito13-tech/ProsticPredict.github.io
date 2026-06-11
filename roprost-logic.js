@@ -20,31 +20,13 @@ const RoprostEngine = (() => {
     LINEAS_CORNERS: [4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5]
   };
 
-  function factorial(n) {
-    let r = 1;
-    for (let i = 2; i <= n; i++) r *= i;
-    return r;
-  }
-
-  function poisson(k, lambda) {
-    return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k);
-  }
-
-  function poissonMayorQue(linea, lambda, techo = 20) {
-    const minimo = Math.ceil(linea);
-    let acumulado = 0;
-    for (let k = minimo; k <= techo; k++) acumulado += poisson(k, lambda);
-    return acumulado;
-  }
-
-  function poissonMenorQue(linea, lambda, techo = 20) {
-    return 1 - poissonMayorQue(linea, lambda, techo);
-  }
+  function factorial(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+  function poisson(k, lambda) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
+  function poissonMayorQue(linea, lambda, techo = 20) { const minimo = Math.ceil(linea); let acumulado = 0; for (let k = minimo; k <= techo; k++) acumulado += poisson(k, lambda); return acumulado; }
+  function poissonMenorQue(linea, lambda, techo = 20) { return 1 - poissonMayorQue(linea, lambda, techo); }
 
   function golesEsperados(local, visitante) {
-    const lambdaLocal = ((local.gf + visitante.ga) / 2) * CONFIG.VENTAJA_LOCAL;
-    const lambdaVisitante = ((visitante.gf + local.ga) / 2) * CONFIG.AJUSTE_VISITANTE;
-    return { lambdaLocal, lambdaVisitante };
+    return { lambdaLocal: ((local.gf + visitante.ga) / 2) * CONFIG.VENTAJA_LOCAL, lambdaVisitante: ((visitante.gf + local.ga) / 2) * CONFIG.AJUSTE_VISITANTE };
   }
 
   function cornersEsperados(local, visitante) {
@@ -56,7 +38,6 @@ const RoprostEngine = (() => {
   function matrizMarcadores(lh, la) {
     const N = CONFIG.MAX_GOLES_MATRIZ;
     let pLocal = 0, pEmpate = 0, pVisita = 0;
-
     for (let i = 0; i <= N; i++) {
       for (let j = 0; j <= N; j++) {
         const p = poisson(i, lh) * poisson(j, la);
@@ -65,14 +46,7 @@ const RoprostEngine = (() => {
         else pVisita += p;
       }
     }
-
-    return {
-      local: pLocal,
-      empate: pEmpate,
-      visita: pVisita,
-      dobleLocal: pLocal + pEmpate,
-      dobleVisita: pVisita + pEmpate
-    };
+    return { local: pLocal, empate: pEmpate, visita: pVisita, dobleLocal: pLocal + pEmpate, dobleVisita: pVisita + pEmpate };
   }
 
   function clasificarPartido(lh, la) {
@@ -100,18 +74,12 @@ const RoprostEngine = (() => {
 
   function mejorLineaMayor(lineas, lambda, umbral, tipo) {
     let elegida = null;
-    for (const linea of lineas) {
-      const prob = poissonMayorQue(linea, lambda) * 100;
-      if (prob >= umbral) elegida = { linea, prob };
-    }
+    for (const linea of lineas) { const prob = poissonMayorQue(linea, lambda) * 100; if (prob >= umbral) elegida = { linea, prob }; }
     return elegida ? { ...elegida, etiqueta: `Más de ${elegida.linea} ${tipo}` } : null;
   }
 
   function mejorLineaMenor(lineas, lambda, umbral, tipo) {
-    for (const linea of lineas) {
-      const prob = poissonMenorQue(linea, lambda) * 100;
-      if (prob >= umbral) return { linea, prob, etiqueta: `Menos de ${linea} ${tipo}` };
-    }
+    for (const linea of lineas) { const prob = poissonMenorQue(linea, lambda) * 100; if (prob >= umbral) return { linea, prob, etiqueta: `Menos de ${linea} ${tipo}` }; }
     return null;
   }
 
@@ -127,24 +95,9 @@ const RoprostEngine = (() => {
   function mejorDobleOportunidad(mercado, local, visitante, umbral) {
     const dc1x = mercado.dobleLocal * 100;
     const dcx2 = mercado.dobleVisita * 100;
-
     if (dc1x < umbral && dcx2 < umbral) return null;
-
-    if (dc1x >= dcx2 && dc1x >= umbral) {
-      return {
-        etiqueta: `${local.name} gana o empata (1X)`,
-        prob: dc1x,
-        familia: "doble",
-        mercado: "Doble oportunidad"
-      };
-    }
-
-    return {
-      etiqueta: `${visitante.name} gana o empata (X2)`,
-      prob: dcx2,
-      familia: "doble",
-      mercado: "Doble oportunidad"
-    };
+    if (dc1x >= dcx2 && dc1x >= umbral) return { etiqueta: `${local.name} gana o empata (1X)`, prob: dc1x, familia: "doble", mercado: "Doble oportunidad" };
+    return { etiqueta: `${visitante.name} gana o empata (X2)`, prob: dcx2, familia: "doble", mercado: "Doble oportunidad" };
   }
 
   function analizarPartido(partido) {
@@ -155,30 +108,17 @@ const RoprostEngine = (() => {
     const mercado = matrizMarcadores(lambdaLocal, lambdaVisitante);
     const tipoPartido = clasificarPartido(lambdaLocal, lambdaVisitante);
     const U = CONFIG.UMBRAL_MINIMO;
-
     const candidatos = [];
 
     const overGoles = mejorLineaMayor(CONFIG.LINEAS_GOLES, lambdaGoles, U, "goles");
     const underGoles = mejorLineaMenor(CONFIG.LINEAS_GOLES, lambdaGoles, U, "goles");
     const golesUnico = elegirMercadoUnico(overGoles, underGoles, tipoPartido);
-    if (golesUnico) {
-      candidatos.push({
-        ...golesUnico,
-        familia: golesUnico.etiqueta.startsWith("Más") ? "goles_over" : "goles_under",
-        mercado: "Goles"
-      });
-    }
+    if (golesUnico) candidatos.push({ ...golesUnico, familia: golesUnico.etiqueta.startsWith("Más") ? "goles_over" : "goles_under", mercado: "Goles" });
 
     const overCorners = mejorLineaMayor(CONFIG.LINEAS_CORNERS, lambdaCorners, U, "córners");
     const underCorners = mejorLineaMenor(CONFIG.LINEAS_CORNERS, lambdaCorners, U, "córners");
     const cornerUnico = elegirMercadoUnico(overCorners, underCorners, tipoPartido);
-    if (cornerUnico) {
-      candidatos.push({
-        ...cornerUnico,
-        familia: cornerUnico.etiqueta.startsWith("Más") ? "corners_over" : "corners_under",
-        mercado: "Córners"
-      });
-    }
+    if (cornerUnico) candidatos.push({ ...cornerUnico, familia: cornerUnico.etiqueta.startsWith("Más") ? "corners_over" : "corners_under", mercado: "Córners" });
 
     const doble = mejorDobleOportunidad(mercado, local, visitante, U);
     if (doble) candidatos.push(doble);
@@ -189,12 +129,10 @@ const RoprostEngine = (() => {
       if (tipoPartido === "ABIERTO" && (c.familia === "goles_over" || c.familia === "corners_over")) return 1;
       return 0;
     };
-
     candidatos.sort((a, b) => (b.prob - a.prob) || (prioriza(b) - prioriza(a)));
 
     const seleccionados = [];
     const mercadosUsados = new Set();
-
     for (const c of candidatos) {
       if (mercadosUsados.has(c.mercado)) continue;
       mercadosUsados.add(c.mercado);
@@ -205,19 +143,10 @@ const RoprostEngine = (() => {
     const pronosticos = seleccionados.map(c => {
       const confianza = Math.round(c.prob);
       const riesgo = etiquetaRiesgo(confianza);
-      return {
-        etiqueta: c.etiqueta,
-        confianza,
-        nivel: etiquetaConfianza(c.prob),
-        riesgo: riesgo.texto,
-        riesgoClase: riesgo.clase,
-        mercado: c.mercado
-      };
+      return { etiqueta: c.etiqueta, confianza, nivel: etiquetaConfianza(c.prob), riesgo: riesgo.texto, riesgoClase: riesgo.clase, mercado: c.mercado };
     });
 
-    const confianzaGeneral = pronosticos.length
-      ? Math.round(pronosticos.reduce((s, p) => s + p.confianza, 0) / pronosticos.length)
-      : 0;
+    const confianzaGeneral = pronosticos.length ? Math.round(pronosticos.reduce((s, p) => s + p.confianza, 0) / pronosticos.length) : 0;
 
     return {
       ...partido,
@@ -237,24 +166,14 @@ const RoprostEngine = (() => {
     };
   }
 
-  function analizarTodos(partidos) {
-    return partidos.map(analizarPartido);
-  }
+  function analizarTodos(partidos) { return partidos.map(analizarPartido); }
 
   function topApuestas(partidosAnalizados) {
-    let bets = partidosAnalizados
-      .filter(p => p.hayValor)
-      .map(p => ({
-        partido: `${p.local.name} vs ${p.visitante.name}`,
-        liga: p.liga,
-        ...p.pronosticos[0]
-      }));
-
+    let bets = partidosAnalizados.filter(p => p.hayValor).map(p => ({ partido: `${p.local.name} vs ${p.visitante.name}`, liga: p.liga, ...p.pronosticos[0] }));
     const sobre85 = bets.filter(b => b.confianza >= 85).length;
     const sobre80 = bets.filter(b => b.confianza >= 80).length;
     if (sobre85 >= 3) bets = bets.filter(b => b.confianza >= 80);
     else if (sobre80 >= 3) bets = bets.filter(b => b.confianza >= 75);
-
     bets.sort((a, b) => b.confianza - a.confianza);
     return bets.slice(0, CONFIG.MAX_TOP_APUESTAS);
   }
@@ -264,35 +183,45 @@ const RoprostEngine = (() => {
     partidosAnalizados.forEach(p => {
       if (!p.hayValor) return;
       p.pronosticos.forEach(pr => {
-        if (pr.confianza >= CONFIG.PICK_DIA_MINIMO) {
-          todos.push({
-            partido: `${p.local.name} vs ${p.visitante.name}`,
-            liga: p.liga,
-            ...pr,
-            motivo: motivoPick(p, pr)
-          });
-        }
+        if (pr.confianza >= CONFIG.PICK_DIA_MINIMO) todos.push({ partido: `${p.local.name} vs ${p.visitante.name}`, liga: p.liga, ...pr, motivo: motivoPick(p, pr) });
       });
     });
     todos.sort((a, b) => b.confianza - a.confianza);
     return todos.slice(0, CONFIG.MAX_PICKS_DIA);
   }
 
+  function lineaDeTexto(texto) {
+    const match = String(texto || "").replace(",", ".").match(/\d+(\.\d+)?/);
+    return match ? parseFloat(match[0]) : NaN;
+  }
+
   function evaluarPronostico(pr, partidoTerminado) {
     const gl = Number(partidoTerminado.golesLocal);
     const gv = Number(partidoTerminado.golesVisitante);
-    if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
-    const totalGoles = gl + gv;
     const texto = pr.etiqueta || "";
 
     if (pr.mercado === "Goles") {
-      const linea = parseFloat(texto.replace(",", ".").match(/\d+(\.\d+)?/)?.[0]);
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+      const totalGoles = gl + gv;
+      const linea = lineaDeTexto(texto);
       if (!Number.isFinite(linea)) return "pendiente";
       if (texto.startsWith("Más")) return totalGoles > linea ? "acertado" : "fallado";
       if (texto.startsWith("Menos")) return totalGoles < linea ? "acertado" : "fallado";
     }
 
+    if (pr.mercado === "Córners") {
+      const cl = Number(partidoTerminado.cornersLocal);
+      const cv = Number(partidoTerminado.cornersVisitante);
+      if (!Number.isFinite(cl) || !Number.isFinite(cv)) return "pendiente";
+      const totalCorners = cl + cv;
+      const linea = lineaDeTexto(texto);
+      if (!Number.isFinite(linea)) return "pendiente";
+      if (texto.startsWith("Más")) return totalCorners > linea ? "acertado" : "fallado";
+      if (texto.startsWith("Menos")) return totalCorners < linea ? "acertado" : "fallado";
+    }
+
     if (pr.mercado === "Doble oportunidad") {
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
       const local = gl > gv;
       const empate = gl === gv;
       const visitante = gv > gl;
@@ -303,29 +232,23 @@ const RoprostEngine = (() => {
     return "pendiente";
   }
 
+  function evaluarCombinada(pronosticos, partido) {
+    if (partido.enVivo) return "vivo";
+    if (!pronosticos || !pronosticos.length) return "pendiente";
+    const estados = pronosticos.map(pr => evaluarPronostico(pr, partido));
+    if (estados.includes("fallado")) return "fallado";
+    if (estados.every(e => e === "acertado")) return "acertado";
+    return "pendiente";
+  }
+
   function motivoPick(p, pr) {
-    if (pr.mercado === "Goles" && pr.etiqueta.startsWith("Más")) {
-      return `El modelo proyecta ~${p.lambdaGoles} goles totales. Se muestra solo una línea de goles para evitar mercados contradictorios.`;
-    }
-    if (pr.mercado === "Goles") {
-      return `Encuentro ${p.tipoPartido.toLowerCase()}: se muestra solo una línea de goles para evitar mercados contradictorios.`;
-    }
-    if (pr.mercado === "Córners") {
-      return `Proyección de ~${p.lambdaCorners} córners totales. Se muestra solo una línea de córners para evitar mercados contradictorios.`;
-    }
+    if (pr.mercado === "Goles" && pr.etiqueta.startsWith("Más")) return `El modelo proyecta ~${p.lambdaGoles} goles totales. Se muestra solo una línea de goles para evitar mercados contradictorios.`;
+    if (pr.mercado === "Goles") return `Encuentro ${p.tipoPartido.toLowerCase()}: se muestra solo una línea de goles para evitar mercados contradictorios.`;
+    if (pr.mercado === "Córners") return `Proyección de ~${p.lambdaCorners} córners totales. Se muestra solo una línea de córners para evitar mercados contradictorios.`;
     return `Opción conservadora: ${pr.etiqueta}.`;
   }
 
-  return {
-    CONFIG,
-    analizarPartido,
-    analizarTodos,
-    topApuestas,
-    picksDelDia,
-    etiquetaConfianza,
-    etiquetaRiesgo,
-    evaluarPronostico
-  };
+  return { CONFIG, analizarPartido, analizarTodos, topApuestas, picksDelDia, etiquetaConfianza, etiquetaRiesgo, evaluarPronostico, evaluarCombinada };
 })();
 
 window.RoprostEngine = RoprostEngine;
