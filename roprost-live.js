@@ -1,7 +1,5 @@
 /* =====================================================================
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
-   ---------------------------------------------------------------------
-   Conexión preparada para APIfootball (apiv3.apifootball.com).
    ===================================================================== */
 
 const RoprostData = (() => {
@@ -10,7 +8,7 @@ const RoprostData = (() => {
     API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3",
     API_HOST: "https://apiv3.apifootball.com/",
     LIGAS: [],
-    DIA_OBJETIVO: "manana",
+    DIA_OBJETIVO: "ambos",
     USAR_DEMO: false
   };
 
@@ -24,10 +22,6 @@ const RoprostData = (() => {
     const mm = String(peru.getMonth() + 1).padStart(2, "0");
     const dd = String(peru.getDate()).padStart(2, "0");
     return `${yyyy}-${mm}-${dd}`;
-  }
-
-  function fechaObjetivo() {
-    return CONFIG.DIA_OBJETIVO === "hoy" ? fechaPeru(0) : fechaPeru(1);
   }
 
   function urlAPI(params) {
@@ -55,9 +49,6 @@ const RoprostData = (() => {
     const gaRaw = n(row?.overall_league_GA, 0) / pj;
     const gf = +(gfRaw > 0 ? gfRaw : 1.2).toFixed(2);
     const ga = +(gaRaw > 0 ? gaRaw : 1.2).toFixed(2);
-    // La tabla de posiciones (plan gratis) no trae córners: se ESTIMAN a
-    // partir del perfil ofensivo/defensivo, con más amplitud que antes para
-    // que el ritmo de córners varíe de un partido a otro.
     const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
     const cf = +clamp(2.5 + gf * 2.2, 2.5, 8.5).toFixed(1);
     const ca = +clamp(2.5 + ga * 2.2, 2.5, 8.5).toFixed(1);
@@ -113,10 +104,8 @@ const RoprostData = (() => {
     return null;
   }
 
-  async function fixturesPorLiga(fecha, leagueId) {
-    const params = { action: "get_events", from: fecha, to: fecha };
-    if (leagueId) params.league_id = leagueId;
-    return fetchAPI(params);
+  async function fixturesPorFecha(fecha) {
+    return fetchAPI({ action: "get_events", from: fecha, to: fecha });
   }
 
   async function ultimosPartidosEquipo(teamId) {
@@ -160,24 +149,36 @@ const RoprostData = (() => {
     };
   }
 
-  async function partidosReales() {
-    const fecha = fechaObjetivo();
-    const ligas = CONFIG.LIGAS.length ? CONFIG.LIGAS : [""];
+  async function procesarFixtures(fixtures, fecha) {
+    const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
+    const standings = new Map();
+    for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
     const partidos = [];
-    for (const leagueId of ligas) {
-      const fixtures = await fixturesPorLiga(fecha, leagueId);
-      const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
-      const standings = new Map();
-      for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
-      for (const fx of fixtures) {
-        const mapa = standings.get(String(fx.league_id)) || new Map();
-        const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
-        p.local.ultimos = await ultimosPartidosEquipo(p.local.id);
-        p.visitante.ultimos = await ultimosPartidosEquipo(p.visitante.id);
-        partidos.push(p);
-      }
+    for (const fx of fixtures) {
+      const mapa = standings.get(String(fx.league_id)) || new Map();
+      const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
+      p.local.ultimos = await ultimosPartidosEquipo(p.local.id);
+      p.visitante.ultimos = await ultimosPartidosEquipo(p.visitante.id);
+      partidos.push(p);
     }
     return partidos;
+  }
+
+  async function partidosReales() {
+    const fechaHoy    = fechaPeru(0);
+    const fechaManana = fechaPeru(1);
+
+    const [fixturesHoy, fixturesManana] = await Promise.all([
+      fixturesPorFecha(fechaHoy),
+      fixturesPorFecha(fechaManana)
+    ]);
+
+    const [partidosHoy, partidosManana] = await Promise.all([
+      procesarFixtures(fixturesHoy, fechaHoy),
+      procesarFixtures(fixturesManana, fechaManana)
+    ]);
+
+    return [...partidosHoy, ...partidosManana];
   }
 
   async function partidosSeguimiento() {
@@ -185,7 +186,7 @@ const RoprostData = (() => {
       const fechas = [fechaPeru(-2), fechaPeru(-1), fechaPeru(0)];
       const rows = [];
       for (const fecha of fechas) {
-        const fixtures = await fixturesPorLiga(fecha, "");
+        const fixtures = await fixturesPorFecha(fecha);
         rows.push(...fixtures.map(fx => mapFixtureBasico(fx, fecha)));
       }
       const unicos = new Map();
@@ -201,7 +202,7 @@ const RoprostData = (() => {
   }
 
   async function obtenerPartidos() {
-    const base = { demo: false, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo(), error: null };
+    const base = { demo: false, dia: "ambos", fecha: fechaPeru(0), error: null };
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
       return { ...base, partidos: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
     }
