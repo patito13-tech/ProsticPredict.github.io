@@ -81,7 +81,6 @@
         .sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`));
     }
 
-    // NUEVO: todos los registros con pronósticos (incluye pendientes)
     function todasEntradasConProns() {
       const o = purge(load());
       return Object.values(o)
@@ -92,7 +91,6 @@
     return { snapshotPredicciones, actualizarResultados, entradasVisibles, todasEntradasConProns };
   })();
 
-  // ── Helpers de fecha ──────────────────────────────────────────────
   function fechaHoy() {
     const d = new Date();
     return d.getFullYear() + "-" +
@@ -203,7 +201,6 @@
   }
 
   function renderSeguimiento(entradas = []) {
-    // Mostrar también pendientes para que no aparezca vacío
     const entradasMostrar = entradas.length > 0 ? entradas : Hist.todasEntradasConProns();
 
     if (!entradasMostrar.length) {
@@ -279,7 +276,6 @@
     if (cont) {
       cont.outerHTML = renderPartidos(filtrados, dia, state.fecha, sufijo);
       activarAcordeon();
-      // Re-enganchar filtros tras el re-render
       $(`#buscador-partidos${sufijo}`)?.addEventListener("input", () => aplicarFiltros(fuente, dia, sufijo));
       $(`#filtro-liga${sufijo}`)?.addEventListener("change", () => aplicarFiltros(fuente, dia, sufijo));
     }
@@ -331,7 +327,6 @@
     const app = $("#app");
     app.innerHTML = `<div class="loading">Analizando partidos…</div>`;
 
-    // Obtener partidos (la API devuelve hoy O mañana según su lógica interna)
     const { partidos, seguimiento, finalizados, dia, fecha, error } = await RoprostData.obtenerPartidos();
 
     state.dia    = dia;
@@ -341,11 +336,9 @@
     const hoyStr    = fechaHoy();
     const mananaStr = fechaManana();
 
-    // Separar partidos por fecha
     const partidosHoy    = partidos.filter(p => p.fecha && p.fecha.startsWith(hoyStr));
     const partidosManana = partidos.filter(p => p.fecha && p.fecha.startsWith(mananaStr));
-    // Si ninguno tiene fecha explícita, usar todos en el día detectado
-    const todosSinFecha = partidos.filter(p => !p.fecha);
+    const todosSinFecha  = partidos.filter(p => !p.fecha);
 
     const fuenteHoy    = partidosHoy.length    ? partidosHoy    : (dia === "hoy"    ? todosSinFecha : []);
     const fuenteManana = partidosManana.length ? partidosManana : (dia === "manana" ? todosSinFecha : partidos);
@@ -360,12 +353,10 @@
     const picks = RoprostEngine.picksDelDia(state.analizados);
     const top   = RoprostEngine.topApuestas(state.analizados);
 
-    // Panel Hoy
     const htmlHoy = state.analizadosHoy.length
       ? renderFiltros(state.analizadosHoy, "-hoy") + renderPartidos(state.analizadosHoy, "hoy", hoyStr, "-hoy")
       : renderSinPartidos("hoy", hoyStr);
 
-    // Panel Mañana
     const htmlManana = state.analizados.length
       ? renderFiltros(state.analizados, "-manana") + renderPartidos(state.analizados, "manana", fecha, "-manana")
       : renderSinPartidos("manana", fecha, error);
@@ -382,7 +373,6 @@
     activarTabs();
     activarAcordeon();
 
-    // Enganchar filtros de ambas pestañas
     $("#buscador-partidos-hoy")?.addEventListener("input",    () => aplicarFiltros(state.analizadosHoy, "hoy",    "-hoy"));
     $("#filtro-liga-hoy")?.addEventListener("change",         () => aplicarFiltros(state.analizadosHoy, "hoy",    "-hoy"));
     $("#buscador-partidos-manana")?.addEventListener("input", () => aplicarFiltros(state.analizados,    "manana", "-manana"));
