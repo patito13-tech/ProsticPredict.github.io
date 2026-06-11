@@ -84,15 +84,24 @@ const RoprostData = (() => {
   }
 
   function logoEquipo(fx, lado) {
-    if (lado === "home") {
-      return fx.team_home_badge || fx.match_hometeam_logo || fx.home_badge || "";
-    }
+    if (lado === "home") return fx.team_home_badge || fx.match_hometeam_logo || fx.home_badge || "";
     return fx.team_away_badge || fx.match_awayteam_logo || fx.away_badge || "";
   }
 
+  function estadoNormalizado(fx) {
+    const status = String(fx.match_status || "").trim().toLowerCase();
+    const scoreLocal = fx.match_hometeam_score;
+    const scoreVisita = fx.match_awayteam_score;
+    const tieneMarcador = scoreLocal !== undefined && scoreVisita !== undefined && scoreLocal !== "" && scoreVisita !== "";
+
+    if (status.includes("finished") || status.includes("final") || status === "ft" || status === "after penalties") return "finalizado";
+    if (status === "half time" || status === "ht" || status.includes("live") || /^\d+/.test(status)) return "en vivo";
+    if (tieneMarcador && status && status !== "not started") return "en vivo";
+    return "programado";
+  }
+
   function finalizado(fx) {
-    const status = String(fx.match_status || "").toLowerCase();
-    return status.includes("finished") || status.includes("final") || status === "ft" || status === "after penalties" || Boolean(fx.match_hometeam_score && fx.match_awayteam_score && fx.match_status === "Finished");
+    return estadoNormalizado(fx) === "finalizado";
   }
 
   async function fixturesPorLiga(fecha, leagueId) {
@@ -107,13 +116,7 @@ const RoprostData = (() => {
     if (cacheUltimos.has(key)) return cacheUltimos.get(key);
 
     try {
-      const rows = await fetchAPI({
-        action: "get_events",
-        team_id: teamId,
-        from: fechaPeru(-120),
-        to: fechaPeru(0)
-      });
-
+      const rows = await fetchAPI({ action: "get_events", team_id: teamId, from: fechaPeru(-120), to: fechaPeru(0) });
       const lista = rows
         .filter(fx => fx.match_hometeam_score !== "" && fx.match_awayteam_score !== "")
         .slice(-5)
@@ -124,13 +127,41 @@ const RoprostData = (() => {
           visitante: fx.match_awayteam_name || "Visitante",
           marcador: `${fx.match_hometeam_score ?? "-"}-${fx.match_awayteam_score ?? "-"}`
         }));
-
       cacheUltimos.set(key, lista);
       return lista;
     } catch (e) {
       cacheUltimos.set(key, []);
       return [];
     }
+  }
+
+  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 }) {
+    const estado = estadoNormalizado(fx);
+    return {
+      id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
+      liga: fx.league_name || "Liga",
+      fecha: fx.match_date || fecha,
+      hora: fx.match_time || "--:--",
+      estado,
+      finalizado: estado === "finalizado",
+      enVivo: estado === "en vivo",
+      golesLocal: fx.match_hometeam_score,
+      golesVisitante: fx.match_awayteam_score,
+      local: {
+        id: fx.match_hometeam_id,
+        name: fx.match_hometeam_name || "Local",
+        logo: logoEquipo(fx, "home"),
+        ultimos: [],
+        ...statsL
+      },
+      visitante: {
+        id: fx.match_awayteam_id,
+        name: fx.match_awayteam_name || "Visitante",
+        logo: logoEquipo(fx, "away"),
+        ultimos: [],
+        ...statsV
+      }
+    };
   }
 
   async function partidosReales() {
@@ -143,69 +174,39 @@ const RoprostData = (() => {
       const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
       const standings = new Map();
 
-      for (const lid of leagueIds) {
-        standings.set(String(lid), await standingPorLiga(lid));
-      }
+      for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
 
       for (const fx of fixtures) {
         const mapa = standings.get(String(fx.league_id)) || new Map();
         const statsL = statsEquipo(fx, mapa, "home");
         const statsV = statsEquipo(fx, mapa, "away");
-        const homeId = fx.match_hometeam_id;
-        const awayId = fx.match_awayteam_id;
-
-        partidos.push({
-          id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
-          liga: fx.league_name || "Liga",
-          fecha,
-          hora: fx.match_time || "--:--",
-          estado: fx.match_status || "Programado",
-          finalizado: finalizado(fx),
-          golesLocal: fx.match_hometeam_score,
-          golesVisitante: fx.match_awayteam_score,
-          local: {
-            id: homeId,
-            name: fx.match_hometeam_name || "Local",
-            logo: logoEquipo(fx, "home"),
-            ultimos: await ultimosPartidosEquipo(homeId),
-            ...statsL
-          },
-          visitante: {
-            id: awayId,
-            name: fx.match_awayteam_name || "Visitante",
-            logo: logoEquipo(fx, "away"),
-            ultimos: await ultimosPartidosEquipo(awayId),
-            ...statsV
-          }
-        });
+        const p = mapFixtureBasico(fx, fecha, statsL, statsV);
+        p.local.ultimos = await ultimosPartidosEquipo(p.local.id);
+        p.visitante.ultimos = await ultimosPartidosEquipo(p.visitante.id);
+        partidos.push(p);
       }
     }
-
     return partidos;
   }
 
-  async function partidosRecientesFinalizados() {
+  async function partidosSeguimiento() {
     try {
+      const fechas = [fechaPeru(-2), fechaPeru(-1), fechaPeru(0)];
       const rows = [];
-      for (const fecha of [fechaPeru(-1), fechaPeru(0)]) {
+      for (const fecha of fechas) {
         const fixtures = await fixturesPorLiga(fecha, "");
-        rows.push(...fixtures);
+        rows.push(...fixtures.map(fx => mapFixtureBasico(fx, fecha)));
       }
-      return rows
-        .filter(finalizado)
-        .slice(-20)
-        .map(fx => ({
-          id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
-          liga: fx.league_name || "Liga",
-          fecha: fx.match_date || "",
-          hora: fx.match_time || "",
-          local: { name: fx.match_hometeam_name || "Local", logo: logoEquipo(fx, "home"), gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 },
-          visitante: { name: fx.match_awayteam_name || "Visitante", logo: logoEquipo(fx, "away"), gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5 },
-          finalizado: true,
-          golesLocal: fx.match_hometeam_score,
-          golesVisitante: fx.match_awayteam_score
-        }));
+
+      const unicos = new Map();
+      rows.forEach(p => unicos.set(String(p.id), p));
+
+      return [...unicos.values()]
+        .filter(p => p.finalizado || p.enVivo)
+        .sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`))
+        .slice(0, 30);
     } catch (e) {
+      console.warn("No se pudo cargar seguimiento en vivo/finalizados", e);
       return [];
     }
   }
@@ -214,18 +215,15 @@ const RoprostData = (() => {
     const base = { demo: false, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo(), error: null };
 
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
-      return { ...base, partidos: [], finalizados: [], error: "API KEY no configurada." };
+      return { ...base, partidos: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
     }
 
     try {
-      const [partidos, finalizados] = await Promise.all([
-        partidosReales(),
-        partidosRecientesFinalizados()
-      ]);
-      return { ...base, partidos, finalizados };
+      const [partidos, seguimiento] = await Promise.all([partidosReales(), partidosSeguimiento()]);
+      return { ...base, partidos, seguimiento, finalizados: seguimiento.filter(p => p.finalizado) };
     } catch (e) {
       console.error("Error con la API:", e);
-      return { ...base, partidos: [], finalizados: [], error: e.message };
+      return { ...base, partidos: [], seguimiento: [], finalizados: [], error: e.message };
     }
   }
 
