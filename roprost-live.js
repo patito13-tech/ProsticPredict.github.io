@@ -1,296 +1,342 @@
 /* =====================================================================
-   ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
+   ROPROST PREDICT — MOTOR DE PREDICCIÓN  (roprost-logic.js)
    ---------------------------------------------------------------------
-   MEJORA #1: Los stats de cada equipo (goles a favor/en contra, córners)
-   se calculan a partir de sus ÚLTIMOS PARTIDOS REALES (get_events),
-   no de la tabla de posiciones. Esto:
-     - Evita los errores 413/404 de standings que forzaban valores por
-       defecto y hacían que casi todo saliera "doble oportunidad".
-     - Usa forma reciente real en vez de promedio de temporada.
-     - Solo usa córners si la API realmente los provee (hoy no lo hace).
-   La tabla de posiciones queda como respaldo si los recientes no alcanzan.
+   Modelo estadístico REAL basado en la distribución de Poisson.
+   No inventa porcentajes: los calcula a partir de los datos del equipo.
+
+   MEJORAS (v3):
+   - CÓRNERS DESACTIVADOS: la API no provee datos reales de córners, así
+     que el mercado queda apagado (CORNERS_ACTIVOS=false). Si algún día
+     hay datos reales, se reactiva y solo se muestra cuando ambos equipos
+     tengan córners reales (cornersReales=true).
+   - SELECCIÓN DE LÍNEA MÁS ESTRICTA: una línea solo es válida si está
+     CERCA del valor esperado (no triviales lejanas) y NO es casi-segura
+     sin valor (ej. "Más de 0.5" al 95%). Esto elimina los picks de
+     relleno y deja los informativos.
+   - Si no hay datos suficientes, devuelve "Sin pick seguro".
    ===================================================================== */
 
-const RoprostData = (() => {
+const RoprostEngine = (() => {
 
   const CONFIG = {
-    API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3",
-    API_HOST: "https://apiv3.apifootball.com/",
-    LIGAS: [],
-    DIA_OBJETIVO: "ambos",
-    USAR_DEMO: false
+    UMBRAL_MINIMO: 70,      // confianza mínima para mostrar una línea
+    UMBRAL_CORNERS: 72,     // los córners exigen algo más (cuando se reactiven)
+    CORNERS_ACTIVOS: false, // ← córners apagados: la API no da datos reales
+    MAX_PRONOSTICOS_PARTIDO: 3,
+    MAX_TOP_APUESTAS: 10,
+    MAX_PICKS_DIA: 3,
+    PICK_DIA_MINIMO: 80,
+    VENTAJA_LOCAL: 1.10,
+    AJUSTE_VISITANTE: 0.95,
+    MAX_GOLES_MATRIZ: 8,
+    // Caps para que una línea no sea ni trivialmente lejana ni casi-segura:
+    MAX_DIST_GOLES: 2.0,    // la línea de goles no puede estar a más de 2.0 de λ
+    MAX_DIST_CORNERS: 2.0,  // ídem córners (para cuando se reactiven)
+    PROB_MAX_GOLES: 92,     // descarta líneas casi-seguras sin valor
+    PROB_MAX_CORNERS: 88,
+    LINEAS_GOLES: [0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
+    LINEAS_CORNERS: [6.5, 7.5, 8.5, 9.5, 10.5, 11.5]
   };
 
-  const cacheUltimos = new Map();
-  const N_RECIENTES = 10;  // cuántos partidos recientes usar para los promedios
+  /* ---------------- Poisson ---------------- */
+  function factorial(n) { let r = 1; for (let i = 2; i <= n; i++) r *= i; return r; }
+  function poisson(k, lambda) { return (Math.pow(lambda, k) * Math.exp(-lambda)) / factorial(k); }
+  function poissonMayorQue(linea, lambda, techo = 25) { const minimo = Math.ceil(linea); let acc = 0; for (let k = minimo; k <= techo; k++) acc += poisson(k, lambda); return acc; }
+  function poissonMenorQue(linea, lambda, techo = 25) { return 1 - poissonMayorQue(linea, lambda, techo); }
 
-  function fechaPeru(offsetDias = 0) {
-    const ahora = new Date();
-    const peru = new Date(ahora.toLocaleString("en-US", { timeZone: "America/Lima" }));
-    peru.setDate(peru.getDate() + offsetDias);
-    const yyyy = peru.getFullYear();
-    const mm = String(peru.getMonth() + 1).padStart(2, "0");
-    const dd = String(peru.getDate()).padStart(2, "0");
-    return `${yyyy}-${mm}-${dd}`;
-  }
-
-  function urlAPI(params) {
-    const finalParams = { ...params, APIkey: CONFIG.API_KEY };
-    const qs = Object.keys(finalParams).map(k => `${encodeURIComponent(k)}=${encodeURIComponent(finalParams[k])}`).join("&");
-    return `${CONFIG.API_HOST}?${qs}`;
-  }
-
-  async function fetchAPI(params) {
-    const res = await fetch(urlAPI(params));
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    const data = await res.json();
-    if (data && data.error) throw new Error(Array.isArray(data.error) ? data.error.join(" | ") : data.error);
-    return Array.isArray(data) ? data : [];
-  }
-
-  function n(valor, fallback = 0) {
-    const x = parseFloat(valor);
-    return Number.isFinite(x) ? x : fallback;
-  }
-
-  function calcularStatsDesdeStanding(row) {
-    const pj = Math.max(1, n(row?.overall_league_payed, 0));
-    const gfRaw = n(row?.overall_league_GF, 0) / pj;
-    const gaRaw = n(row?.overall_league_GA, 0) / pj;
-    const gf = +(gfRaw > 0 ? gfRaw : 1.2).toFixed(2);
-    const ga = +(gaRaw > 0 ? gaRaw : 1.2).toFixed(2);
-    const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
-    const cf = +clamp(2.5 + gf * 2.2, 2.5, 8.5).toFixed(1);
-    const ca = +clamp(2.5 + ga * 2.2, 2.5, 8.5).toFixed(1);
-    // Estos córners son ESTIMADOS desde goles (la tabla no trae córners).
-    // Por eso van marcados como no-fiables: el motor no debe usarlos.
-    return { gf, ga, cf, ca, cornersReales: false, statsReales: true };
-  }
-
-  async function standingPorLiga(leagueId) {
-    if (!leagueId) return new Map();
-    try {
-      const rows = await fetchAPI({ action: "get_standings", league_id: leagueId });
-      const mapa = new Map();
-      rows.forEach(r => {
-        const stats = calcularStatsDesdeStanding(r);
-        if (r.team_id) mapa.set(String(r.team_id), stats);
-        if (r.team_name) mapa.set(String(r.team_name).toLowerCase(), stats);
-      });
-      return mapa;
-    } catch (e) {
-      console.warn("No se pudo cargar standings para liga", leagueId, e);
-      return new Map();
-    }
-  }
-
-  function statsEquipo(fx, mapa, lado) {
-    const id = lado === "home" ? fx.match_hometeam_id : fx.match_awayteam_id;
-    const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
-    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, cornersReales: false, statsReales: false };
-  }
-
-  function logoEquipo(fx, lado) {
-    if (lado === "home") return fx.team_home_badge || fx.match_hometeam_logo || fx.home_badge || "";
-    return fx.team_away_badge || fx.match_awayteam_logo || fx.away_badge || "";
-  }
-
-  function estadoNormalizado(fx) {
-    const status = String(fx.match_status || "").trim().toLowerCase();
-    const scoreLocal = fx.match_hometeam_score;
-    const scoreVisita = fx.match_awayteam_score;
-    const tieneMarcador = scoreLocal !== undefined && scoreVisita !== undefined && scoreLocal !== "" && scoreVisita !== "";
-    if (status.includes("finished") || status.includes("final") || status === "ft" || status === "after penalties") return "finalizado";
-    if (status === "half time" || status === "ht" || status.includes("live") || /^\d+/.test(status)) return "en vivo";
-    if (tieneMarcador && status && status !== "not started") return "en vivo";
-    return "programado";
-  }
-
-  function valorCorner(fx, lado) {
-    const keysHome = ["match_hometeam_corners", "match_hometeam_corner", "hometeam_corners", "home_corners", "match_home_corners"];
-    const keysAway = ["match_awayteam_corners", "match_awayteam_corner", "awayteam_corners", "away_corners", "match_away_corners"];
-    const keys = lado === "home" ? keysHome : keysAway;
-    for (const k of keys) {
-      if (fx[k] !== undefined && fx[k] !== "") return fx[k];
-    }
-    return null;
-  }
-
-  async function fixturesPorFecha(fecha) {
-    return fetchAPI({ action: "get_events", from: fecha, to: fecha });
-  }
-
-  /* ---------------------------------------------------------------------
-     STATS DESDE LOS ÚLTIMOS PARTIDOS REALES  (reemplaza ultimosPartidosEquipo)
-     Calcula gf/ga (reales) y cf/ca (solo si la API trae córners), además de
-     devolver la lista de últimos partidos para mostrar en la UI.
-     --------------------------------------------------------------------- */
-  async function statsRecientesEquipo(teamId, teamName) {
-    if (!teamId) return { statsReales: false, ultimos: [] };
-    const key = String(teamId);
-    if (cacheUltimos.has(key)) return cacheUltimos.get(key);
-    try {
-      const rows = await fetchAPI({ action: "get_events", team_id: teamId, from: fechaPeru(-150), to: fechaPeru(0) });
-      const finished = rows
-        .filter(fx => fx.match_hometeam_score !== "" && fx.match_awayteam_score !== "" &&
-                      fx.match_hometeam_score != null && fx.match_awayteam_score != null)
-        .slice(-N_RECIENTES);
-
-      let sumGF = 0, sumGA = 0, sumCF = 0, sumCA = 0, conCorner = 0;
-      const ultimos = [];
-
-      finished.forEach(fx => {
-        const esLocal = String(fx.match_hometeam_id) === key ||
-          String(fx.match_hometeam_name || "").toLowerCase() === String(teamName || "").toLowerCase();
-        const gl = n(fx.match_hometeam_score, NaN), gv = n(fx.match_awayteam_score, NaN);
-        if (!Number.isFinite(gl) || !Number.isFinite(gv)) return;
-
-        sumGF += esLocal ? gl : gv;
-        sumGA += esLocal ? gv : gl;
-
-        // córners reales SOLO si la API los trae (hoy no lo hace, pero queda listo)
-        const cl = n(valorCorner(fx, "home"), NaN), cv = n(valorCorner(fx, "away"), NaN);
-        if (Number.isFinite(cl) && Number.isFinite(cv)) {
-          sumCF += esLocal ? cl : cv;
-          sumCA += esLocal ? cv : cl;
-          conCorner++;
-        }
-
-        ultimos.push({
-          fecha: fx.match_date || "",
-          local: fx.match_hometeam_name || "Local",
-          visitante: fx.match_awayteam_name || "Visitante",
-          marcador: `${fx.match_hometeam_score ?? "-"}-${fx.match_awayteam_score ?? "-"}`
-        });
-      });
-
-      const pj = finished.length;
-      // Necesitamos al menos 4 partidos para que el promedio signifique algo
-      if (pj < 4) {
-        const vacio = { statsReales: false, ultimos: ultimos.reverse() };
-        cacheUltimos.set(key, vacio);
-        return vacio;
-      }
-
-      const cornersReales = conCorner >= 4;
-      const stats = {
-        gf: +(sumGF / pj).toFixed(2),
-        ga: +(sumGA / pj).toFixed(2),
-        cf: cornersReales ? +(sumCF / conCorner).toFixed(2) : null,
-        ca: cornersReales ? +(sumCA / conCorner).toFixed(2) : null,
-        muestra: pj,
-        muestraCorners: conCorner,
-        cornersReales,
-        statsReales: true,
-        ultimos: ultimos.reverse()
-      };
-      cacheUltimos.set(key, stats);
-      return stats;
-    } catch (e) {
-      const vacio = { statsReales: false, ultimos: [] };
-      cacheUltimos.set(key, vacio);
-      return vacio;
-    }
-  }
-
-  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, cornersReales: false, statsReales: false }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, cornersReales: false, statsReales: false }) {
-    const estado = estadoNormalizado(fx);
-    const cornersLocal = valorCorner(fx, "home");
-    const cornersVisitante = valorCorner(fx, "away");
+  /* ---------------- valores esperados ---------------- */
+  function golesEsperados(local, visitante) {
     return {
-      id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
-      liga: fx.league_name || "Liga",
-      fecha: fx.match_date || fecha,
-      hora: fx.match_time || "--:--",
-      estado,
-      finalizado: estado === "finalizado",
-      enVivo: estado === "en vivo",
-      golesLocal: fx.match_hometeam_score,
-      golesVisitante: fx.match_awayteam_score,
-      cornersLocal,
-      cornersVisitante,
-      local: { id: fx.match_hometeam_id, name: fx.match_hometeam_name || "Local", logo: logoEquipo(fx, "home"), ultimos: [], ...statsL },
-      visitante: { id: fx.match_awayteam_id, name: fx.match_awayteam_name || "Visitante", logo: logoEquipo(fx, "away"), ultimos: [], ...statsV }
+      lambdaLocal: ((local.gf + visitante.ga) / 2) * CONFIG.VENTAJA_LOCAL,
+      lambdaVisitante: ((visitante.gf + local.ga) / 2) * CONFIG.AJUSTE_VISITANTE
     };
   }
 
-  async function procesarFixtures(fixtures, fecha) {
-    const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
-    const standings = new Map();
-    for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
-
-    const partidos = [];
-    for (const fx of fixtures) {
-      const mapa = standings.get(String(fx.league_id)) || new Map();
-
-      // 1º intento: stats de partidos recientes (datos reales)
-      const stL = await statsRecientesEquipo(fx.match_hometeam_id, fx.match_hometeam_name);
-      const stV = await statsRecientesEquipo(fx.match_awayteam_id, fx.match_awayteam_name);
-
-      // respaldo: la tabla de posiciones, solo si los recientes no sirven
-      const usarL = stL.statsReales ? stL : statsEquipo(fx, mapa, "home");
-      const usarV = stV.statsReales ? stV : statsEquipo(fx, mapa, "away");
-
-      const p = mapFixtureBasico(fx, fecha, usarL, usarV);
-      p.local.ultimos     = stL.ultimos || [];
-      p.visitante.ultimos = stV.ultimos || [];
-      partidos.push(p);
-    }
-    return partidos;
+  function cornersEsperados(local, visitante) {
+    // Solo tiene sentido si hay córners reales; si no, devuelve null.
+    if (local.cf == null || local.ca == null || visitante.cf == null || visitante.ca == null) return null;
+    const cLocal = (local.cf + visitante.ca) / 2;
+    const cVisitante = (visitante.cf + local.ca) / 2;
+    return cLocal + cVisitante;
   }
 
-  async function partidosReales() {
-    const fechaHoy    = fechaPeru(0);
-    const fechaManana = fechaPeru(1);
-
-    const [fixturesHoy, fixturesManana] = await Promise.all([
-      fixturesPorFecha(fechaHoy),
-      fixturesPorFecha(fechaManana)
-    ]);
-
-    const [partidosHoy, partidosManana] = await Promise.all([
-      procesarFixtures(fixturesHoy, fechaHoy),
-      procesarFixtures(fixturesManana, fechaManana)
-    ]);
-
-    return [...partidosHoy, ...partidosManana];
-  }
-
-  async function partidosSeguimiento() {
-    try {
-      const fechas = [fechaPeru(-2), fechaPeru(-1), fechaPeru(0)];
-      const rows = [];
-      for (const fecha of fechas) {
-        const fixtures = await fixturesPorFecha(fecha);
-        rows.push(...fixtures.map(fx => mapFixtureBasico(fx, fecha)));
+  function matrizMarcadores(lh, la) {
+    const N = CONFIG.MAX_GOLES_MATRIZ;
+    let pLocal = 0, pEmpate = 0, pVisita = 0;
+    for (let i = 0; i <= N; i++) {
+      for (let j = 0; j <= N; j++) {
+        const p = poisson(i, lh) * poisson(j, la);
+        if (i > j) pLocal += p;
+        else if (i === j) pEmpate += p;
+        else pVisita += p;
       }
-      const unicos = new Map();
-      rows.forEach(p => unicos.set(String(p.id), p));
-      return [...unicos.values()]
-        .filter(p => p.finalizado || p.enVivo)
-        .sort((a, b) => `${b.fecha} ${b.hora}`.localeCompare(`${a.fecha} ${a.hora}`))
-        .slice(0, 30);
-    } catch (e) {
-      console.warn("No se pudo cargar seguimiento en vivo/finalizados", e);
-      return [];
     }
+    return { local: pLocal, empate: pEmpate, visita: pVisita, dobleLocal: pLocal + pEmpate, dobleVisita: pVisita + pEmpate };
   }
 
-  async function obtenerPartidos() {
-    const base = { demo: false, dia: "ambos", fecha: fechaPeru(0), error: null };
-    if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
-      return { ...base, partidos: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
-    }
-    try {
-      const [partidos, seguimiento] = await Promise.all([partidosReales(), partidosSeguimiento()]);
-      return { ...base, partidos, seguimiento, finalizados: seguimiento.filter(p => p.finalizado) };
-    } catch (e) {
-      console.error("Error con la API:", e);
-      return { ...base, partidos: [], seguimiento: [], finalizados: [], error: e.message };
-    }
+  function clasificarPartido(lh, la) {
+    const totalEsperado = lh + la;
+    if (totalEsperado >= 2.7) return "ABIERTO";
+    if (totalEsperado <= 2.2) return "CERRADO";
+    return "EQUILIBRADO";
   }
 
-  return { CONFIG, obtenerPartidos };
+  function etiquetaConfianza(pct) {
+    if (pct >= 95) return "Excelente";
+    if (pct >= 90) return "Muy alta";
+    if (pct >= 85) return "Alta";
+    if (pct >= 80) return "Buena";
+    if (pct >= 75) return "Aceptable";
+    return "Última opción";
+  }
+
+  function etiquetaRiesgo(pct) {
+    if (pct >= 85) return { texto: "Muy segura", clase: "riesgo-verde" };
+    if (pct >= 80) return { texto: "Segura", clase: "riesgo-amarillo" };
+    if (pct >= 75) return { texto: "Moderada", clase: "riesgo-naranja" };
+    return { texto: "Evitar", clase: "riesgo-rojo" };
+  }
+
+  /* ---------------------------------------------------------------
+     SELECCIÓN DE LÍNEA ÚNICA
+     Una línea es VIABLE si:
+       1) supera el umbral de confianza,
+       2) NO es trivialmente segura (prob <= probMax) → sin valor,
+       3) NO está demasiado lejos del valor esperado (dist <= maxDist).
+     Se elige la más cercana a λ, respetando el tipo de partido.
+     Devuelve null si ninguna línea cumple.
+  --------------------------------------------------------------- */
+  function mejorLineaUnica(lineas, lambda, umbral, etiquetaTipo, tipoPartido, maxDist, probMax) {
+    if (lambda == null || !Number.isFinite(lambda)) return null;
+    const candidatos = [];
+    for (const linea of lineas) {
+      const pOver = poissonMayorQue(linea, lambda) * 100;
+      const pUnder = poissonMenorQue(linea, lambda) * 100;
+      candidatos.push({ linea, lado: "over", prob: pOver, dist: Math.abs(lambda - linea) });
+      candidatos.push({ linea, lado: "under", prob: pUnder, dist: Math.abs(lambda - linea) });
+    }
+    const viables = candidatos.filter(c =>
+      c.prob >= umbral && c.prob <= probMax && c.dist <= maxDist
+    );
+    if (!viables.length) return null;
+
+    const ladoPreferido = tipoPartido === "ABIERTO" ? "over" : tipoPartido === "CERRADO" ? "under" : null;
+    const ordenar = (arr) => arr.sort((a, b) => (a.dist - b.dist) || (b.prob - a.prob));
+
+    let pool = viables;
+    if (ladoPreferido) {
+      const delLado = viables.filter(c => c.lado === ladoPreferido);
+      if (delLado.length) pool = delLado;
+    }
+    ordenar(pool);
+
+    const best = pool[0];
+    const etiqueta = best.lado === "over"
+      ? `Más de ${best.linea} ${etiquetaTipo}`
+      : `Menos de ${best.linea} ${etiquetaTipo}`;
+    return { linea: best.linea, lado: best.lado, prob: best.prob, etiqueta };
+  }
+
+  function mejorDobleOportunidad(mercado, local, visitante, umbral) {
+    const dc1x = mercado.dobleLocal * 100;
+    const dcx2 = mercado.dobleVisita * 100;
+    if (dc1x < umbral && dcx2 < umbral) return null;
+    if (dc1x >= dcx2 && dc1x >= umbral) return { etiqueta: `${local.name} gana o empata (1X)`, prob: dc1x, familia: "doble", mercado: "Doble oportunidad" };
+    return { etiqueta: `${visitante.name} gana o empata (X2)`, prob: dcx2, familia: "doble", mercado: "Doble oportunidad" };
+  }
+
+  /* ---------------- explicaciones breves ---------------- */
+  function motivoGoles(linea, tipoPartido, lambdaGoles) {
+    const tp = tipoPartido.toLowerCase();
+    if (linea.lado === "over") return `Se proyectan ≈ ${lambdaGoles.toFixed(2)} goles (partido ${tp}); "${linea.etiqueta}" es la línea de Más confiable más cercana a esa cifra.`;
+    return `Se proyectan ≈ ${lambdaGoles.toFixed(2)} goles (partido ${tp}); "${linea.etiqueta}" es la línea de Menos confiable más ajustada al pronóstico.`;
+  }
+  function motivoCorners(linea, lambdaCorners) {
+    return `Ritmo estimado ≈ ${lambdaCorners.toFixed(1)} córners; "${linea.etiqueta}" es la línea confiable más cercana a ese ritmo.`;
+  }
+  function motivoDoble(c) {
+    return `La doble oportunidad "${c.etiqueta}" es la salida más segura según las probabilidades 1/X/2.`;
+  }
+
+  /* ---------------- análisis de un partido ---------------- */
+  function analizarPartido(partido) {
+    const { local, visitante } = partido;
+
+    const datosSuficientes = (local.statsReales !== false) && (visitante.statsReales !== false);
+
+    const { lambdaLocal, lambdaVisitante } = golesEsperados(local, visitante);
+    const lambdaGoles = lambdaLocal + lambdaVisitante;
+    const lambdaCorners = cornersEsperados(local, visitante); // null si no hay córners reales
+    const mercado = matrizMarcadores(lambdaLocal, lambdaVisitante);
+    const tipoPartido = clasificarPartido(lambdaLocal, lambdaVisitante);
+
+    const base = {
+      ...partido,
+      tipoPartido,
+      lambdaLocal: +lambdaLocal.toFixed(2),
+      lambdaVisitante: +lambdaVisitante.toFixed(2),
+      lambdaGoles: +lambdaGoles.toFixed(2),
+      lambdaCorners: lambdaCorners != null ? +lambdaCorners.toFixed(2) : null,
+      probVictoria: {
+        local: Math.round(mercado.local * 100),
+        empate: Math.round(mercado.empate * 100),
+        visitante: Math.round(mercado.visita * 100),
+        dobleLocal: Math.round(mercado.dobleLocal * 100),
+        dobleVisitante: Math.round(mercado.dobleVisita * 100)
+      }
+    };
+
+    if (!datosSuficientes) {
+      return { ...base, pronosticos: [], confianzaGeneral: 0, hayValor: false, sinDatos: true, motivoGeneral: "Sin pick seguro: faltan datos reales del equipo." };
+    }
+
+    const candidatos = [];
+
+    // ---- Goles: UNA sola línea (con caps de distancia y probabilidad) ----
+    const lineaGoles = mejorLineaUnica(CONFIG.LINEAS_GOLES, lambdaGoles, CONFIG.UMBRAL_MINIMO,
+      "goles", tipoPartido, CONFIG.MAX_DIST_GOLES, CONFIG.PROB_MAX_GOLES);
+    if (lineaGoles) candidatos.push({ etiqueta: lineaGoles.etiqueta, prob: lineaGoles.prob, mercado: "Goles", motivo: motivoGoles(lineaGoles, tipoPartido, lambdaGoles) });
+
+    // ---- Córners: solo si el mercado está activo Y ambos equipos tienen córners reales ----
+    const cornersFiables = CONFIG.CORNERS_ACTIVOS
+      && local.cornersReales && visitante.cornersReales
+      && lambdaCorners != null;
+    const lineaCorners = cornersFiables
+      ? mejorLineaUnica(CONFIG.LINEAS_CORNERS, lambdaCorners, CONFIG.UMBRAL_CORNERS,
+          "córners", tipoPartido, CONFIG.MAX_DIST_CORNERS, CONFIG.PROB_MAX_CORNERS)
+      : null;
+    if (lineaCorners) candidatos.push({ etiqueta: lineaCorners.etiqueta, prob: lineaCorners.prob, mercado: "Córners", motivo: motivoCorners(lineaCorners, lambdaCorners) });
+
+    // ---- Doble oportunidad ----
+    const doble = mejorDobleOportunidad(mercado, local, visitante, CONFIG.UMBRAL_MINIMO);
+    if (doble) candidatos.push({ ...doble, motivo: motivoDoble(doble) });
+
+    candidatos.sort((a, b) => b.prob - a.prob);
+    const seleccionados = [];
+    const mercadosUsados = new Set();
+    for (const c of candidatos) {
+      if (mercadosUsados.has(c.mercado)) continue;
+      mercadosUsados.add(c.mercado);
+      seleccionados.push(c);
+      if (seleccionados.length >= CONFIG.MAX_PRONOSTICOS_PARTIDO) break;
+    }
+
+    const pronosticos = seleccionados.map(c => {
+      const confianza = Math.round(c.prob);
+      const riesgo = etiquetaRiesgo(confianza);
+      return {
+        etiqueta: c.etiqueta,
+        confianza,
+        nivel: etiquetaConfianza(c.prob),
+        riesgo: riesgo.texto,
+        riesgoClase: riesgo.clase,
+        mercado: c.mercado,
+        motivo: c.motivo
+      };
+    });
+
+    const confianzaGeneral = pronosticos.length ? Math.round(pronosticos.reduce((s, p) => s + p.confianza, 0) / pronosticos.length) : 0;
+
+    return {
+      ...base,
+      pronosticos,
+      confianzaGeneral,
+      hayValor: pronosticos.length > 0,
+      sinDatos: false,
+      motivoGeneral: pronosticos.length ? "" : "Sin pick seguro: ninguna línea supera el umbral de confianza en este partido."
+    };
+  }
+
+  function analizarTodos(partidos) { return partidos.map(analizarPartido); }
+
+  function topApuestas(partidosAnalizados) {
+    let bets = partidosAnalizados.filter(p => p.hayValor).map(p => ({ partido: `${p.local.name} vs ${p.visitante.name}`, liga: p.liga, ...p.pronosticos[0] }));
+    const sobre85 = bets.filter(b => b.confianza >= 85).length;
+    const sobre80 = bets.filter(b => b.confianza >= 80).length;
+    if (sobre85 >= 3) bets = bets.filter(b => b.confianza >= 80);
+    else if (sobre80 >= 3) bets = bets.filter(b => b.confianza >= 75);
+    bets.sort((a, b) => b.confianza - a.confianza);
+    return bets.slice(0, CONFIG.MAX_TOP_APUESTAS);
+  }
+
+  function picksDelDia(partidosAnalizados) {
+    const todos = [];
+    partidosAnalizados.forEach(p => {
+      if (!p.hayValor) return;
+      p.pronosticos.forEach(pr => {
+        if (pr.confianza >= CONFIG.PICK_DIA_MINIMO) todos.push({ partido: `${p.local.name} vs ${p.visitante.name}`, liga: p.liga, ...pr, motivo: pr.motivo || motivoPick(p, pr) });
+      });
+    });
+    todos.sort((a, b) => b.confianza - a.confianza);
+    return todos.slice(0, CONFIG.MAX_PICKS_DIA);
+  }
+
+  /* ---------------- evaluación de resultados ---------------- */
+  function lineaDeTexto(texto) {
+    const match = String(texto || "").replace(",", ".").match(/\d+(\.\d+)?/);
+    return match ? parseFloat(match[0]) : NaN;
+  }
+
+  function numReal(v) {
+    if (v === "" || v === null || v === undefined) return NaN;
+    const x = Number(v);
+    return Number.isFinite(x) ? x : NaN;
+  }
+
+  function evaluarPronostico(pr, partidoTerminado) {
+    const gl = numReal(partidoTerminado.golesLocal);
+    const gv = numReal(partidoTerminado.golesVisitante);
+    const texto = pr.etiqueta || "";
+
+    if (pr.mercado === "Goles") {
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+      const totalGoles = gl + gv;
+      const linea = lineaDeTexto(texto);
+      if (!Number.isFinite(linea)) return "pendiente";
+      if (texto.startsWith("Más")) return totalGoles > linea ? "acertado" : "fallado";
+      if (texto.startsWith("Menos")) return totalGoles < linea ? "acertado" : "fallado";
+    }
+
+    if (pr.mercado === "Córners") {
+      const cl = numReal(partidoTerminado.cornersLocal);
+      const cv = numReal(partidoTerminado.cornersVisitante);
+      if (!Number.isFinite(cl) || !Number.isFinite(cv)) return "pendiente";
+      const totalCorners = cl + cv;
+      const linea = lineaDeTexto(texto);
+      if (!Number.isFinite(linea)) return "pendiente";
+      if (texto.startsWith("Más")) return totalCorners > linea ? "acertado" : "fallado";
+      if (texto.startsWith("Menos")) return totalCorners < linea ? "acertado" : "fallado";
+    }
+
+    if (pr.mercado === "Doble oportunidad") {
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+      const local = gl > gv;
+      const empate = gl === gv;
+      const visitante = gv > gl;
+      if (texto.includes("(1X)")) return (local || empate) ? "acertado" : "fallado";
+      if (texto.includes("(X2)")) return (visitante || empate) ? "acertado" : "fallado";
+    }
+
+    return "pendiente";
+  }
+
+  function evaluarCombinada(pronosticos, partido) {
+    if (partido.enVivo) return "vivo";
+    if (!pronosticos || !pronosticos.length) return "pendiente";
+    const estados = pronosticos.map(pr => evaluarPronostico(pr, partido));
+    if (estados.includes("fallado")) return "fallado";
+    if (estados.every(e => e === "acertado")) return "acertado";
+    return "pendiente";
+  }
+
+  function motivoPick(p, pr) {
+    if (pr.mercado === "Goles") return `El modelo proyecta ≈ ${p.lambdaGoles} goles totales.`;
+    if (pr.mercado === "Córners") return `Proyección de ≈ ${p.lambdaCorners} córners.`;
+    return `Opción conservadora: ${pr.etiqueta}.`;
+  }
+
+  return { CONFIG, analizarPartido, analizarTodos, topApuestas, picksDelDia, etiquetaConfianza, etiquetaRiesgo, evaluarPronostico, evaluarCombinada };
 })();
 
-window.RoprostData = RoprostData;
+if (typeof window !== "undefined") window.RoprostEngine = RoprostEngine;
+if (typeof module !== "undefined") module.exports = RoprostEngine;
