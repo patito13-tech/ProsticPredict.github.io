@@ -1,5 +1,14 @@
 /* =====================================================================
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
+   ---------------------------------------------------------------------
+   MEJORA #1: Los stats de cada equipo (goles a favor/en contra, córners)
+   se calculan a partir de sus ÚLTIMOS PARTIDOS REALES (get_events),
+   no de la tabla de posiciones. Esto:
+     - Evita los errores 413/404 de standings que forzaban valores por
+       defecto y hacían que casi todo saliera "doble oportunidad".
+     - Usa forma reciente real en vez de promedio de temporada.
+     - Solo usa córners si la API realmente los provee (hoy no lo hace).
+   La tabla de posiciones queda como respaldo si los recientes no alcanzan.
    ===================================================================== */
 
 const RoprostData = (() => {
@@ -13,6 +22,7 @@ const RoprostData = (() => {
   };
 
   const cacheUltimos = new Map();
+  const N_RECIENTES = 10;  // cuántos partidos recientes usar para los promedios
 
   function fechaPeru(offsetDias = 0) {
     const ahora = new Date();
@@ -52,7 +62,9 @@ const RoprostData = (() => {
     const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
     const cf = +clamp(2.5 + gf * 2.2, 2.5, 8.5).toFixed(1);
     const ca = +clamp(2.5 + ga * 2.2, 2.5, 8.5).toFixed(1);
-    return { gf, ga, cf, ca, statsReales: true };
+    // Estos córners son ESTIMADOS desde goles (la tabla no trae córners).
+    // Por eso van marcados como no-fiables: el motor no debe usarlos.
+    return { gf, ga, cf, ca, cornersReales: false, statsReales: true };
   }
 
   async function standingPorLiga(leagueId) {
@@ -75,7 +87,7 @@ const RoprostData = (() => {
   function statsEquipo(fx, mapa, lado) {
     const id = lado === "home" ? fx.match_hometeam_id : fx.match_awayteam_id;
     const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
-    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
+    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, cornersReales: false, statsReales: false };
   }
 
   function logoEquipo(fx, lado) {
@@ -108,27 +120,80 @@ const RoprostData = (() => {
     return fetchAPI({ action: "get_events", from: fecha, to: fecha });
   }
 
-  async function ultimosPartidosEquipo(teamId) {
-    if (!teamId) return [];
+  /* ---------------------------------------------------------------------
+     STATS DESDE LOS ÚLTIMOS PARTIDOS REALES  (reemplaza ultimosPartidosEquipo)
+     Calcula gf/ga (reales) y cf/ca (solo si la API trae córners), además de
+     devolver la lista de últimos partidos para mostrar en la UI.
+     --------------------------------------------------------------------- */
+  async function statsRecientesEquipo(teamId, teamName) {
+    if (!teamId) return { statsReales: false, ultimos: [] };
     const key = String(teamId);
     if (cacheUltimos.has(key)) return cacheUltimos.get(key);
     try {
-      const rows = await fetchAPI({ action: "get_events", team_id: teamId, from: fechaPeru(-120), to: fechaPeru(0) });
-      const lista = rows.filter(fx => fx.match_hometeam_score !== "" && fx.match_awayteam_score !== "").slice(-5).reverse().map(fx => ({
-        fecha: fx.match_date || "",
-        local: fx.match_hometeam_name || "Local",
-        visitante: fx.match_awayteam_name || "Visitante",
-        marcador: `${fx.match_hometeam_score ?? "-"}-${fx.match_awayteam_score ?? "-"}`
-      }));
-      cacheUltimos.set(key, lista);
-      return lista;
+      const rows = await fetchAPI({ action: "get_events", team_id: teamId, from: fechaPeru(-150), to: fechaPeru(0) });
+      const finished = rows
+        .filter(fx => fx.match_hometeam_score !== "" && fx.match_awayteam_score !== "" &&
+                      fx.match_hometeam_score != null && fx.match_awayteam_score != null)
+        .slice(-N_RECIENTES);
+
+      let sumGF = 0, sumGA = 0, sumCF = 0, sumCA = 0, conCorner = 0;
+      const ultimos = [];
+
+      finished.forEach(fx => {
+        const esLocal = String(fx.match_hometeam_id) === key ||
+          String(fx.match_hometeam_name || "").toLowerCase() === String(teamName || "").toLowerCase();
+        const gl = n(fx.match_hometeam_score, NaN), gv = n(fx.match_awayteam_score, NaN);
+        if (!Number.isFinite(gl) || !Number.isFinite(gv)) return;
+
+        sumGF += esLocal ? gl : gv;
+        sumGA += esLocal ? gv : gl;
+
+        // córners reales SOLO si la API los trae (hoy no lo hace, pero queda listo)
+        const cl = n(valorCorner(fx, "home"), NaN), cv = n(valorCorner(fx, "away"), NaN);
+        if (Number.isFinite(cl) && Number.isFinite(cv)) {
+          sumCF += esLocal ? cl : cv;
+          sumCA += esLocal ? cv : cl;
+          conCorner++;
+        }
+
+        ultimos.push({
+          fecha: fx.match_date || "",
+          local: fx.match_hometeam_name || "Local",
+          visitante: fx.match_awayteam_name || "Visitante",
+          marcador: `${fx.match_hometeam_score ?? "-"}-${fx.match_awayteam_score ?? "-"}`
+        });
+      });
+
+      const pj = finished.length;
+      // Necesitamos al menos 4 partidos para que el promedio signifique algo
+      if (pj < 4) {
+        const vacio = { statsReales: false, ultimos: ultimos.reverse() };
+        cacheUltimos.set(key, vacio);
+        return vacio;
+      }
+
+      const cornersReales = conCorner >= 4;
+      const stats = {
+        gf: +(sumGF / pj).toFixed(2),
+        ga: +(sumGA / pj).toFixed(2),
+        cf: cornersReales ? +(sumCF / conCorner).toFixed(2) : null,
+        ca: cornersReales ? +(sumCA / conCorner).toFixed(2) : null,
+        muestra: pj,
+        muestraCorners: conCorner,
+        cornersReales,
+        statsReales: true,
+        ultimos: ultimos.reverse()
+      };
+      cacheUltimos.set(key, stats);
+      return stats;
     } catch (e) {
-      cacheUltimos.set(key, []);
-      return [];
+      const vacio = { statsReales: false, ultimos: [] };
+      cacheUltimos.set(key, vacio);
+      return vacio;
     }
   }
 
-  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }) {
+  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, cornersReales: false, statsReales: false }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, cornersReales: false, statsReales: false }) {
     const estado = estadoNormalizado(fx);
     const cornersLocal = valorCorner(fx, "home");
     const cornersVisitante = valorCorner(fx, "away");
@@ -153,12 +218,22 @@ const RoprostData = (() => {
     const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
     const standings = new Map();
     for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
+
     const partidos = [];
     for (const fx of fixtures) {
       const mapa = standings.get(String(fx.league_id)) || new Map();
-      const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
-      p.local.ultimos = await ultimosPartidosEquipo(p.local.id);
-      p.visitante.ultimos = await ultimosPartidosEquipo(p.visitante.id);
+
+      // 1º intento: stats de partidos recientes (datos reales)
+      const stL = await statsRecientesEquipo(fx.match_hometeam_id, fx.match_hometeam_name);
+      const stV = await statsRecientesEquipo(fx.match_awayteam_id, fx.match_awayteam_name);
+
+      // respaldo: la tabla de posiciones, solo si los recientes no sirven
+      const usarL = stL.statsReales ? stL : statsEquipo(fx, mapa, "home");
+      const usarV = stV.statsReales ? stV : statsEquipo(fx, mapa, "away");
+
+      const p = mapFixtureBasico(fx, fecha, usarL, usarV);
+      p.local.ultimos     = stL.ultimos || [];
+      p.visitante.ultimos = stV.ultimos || [];
       partidos.push(p);
     }
     return partidos;
