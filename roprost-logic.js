@@ -378,9 +378,17 @@ const RoprostEngine = (() => {
   function evaluarCombinada(pronosticos, partido) {
     if (partido.enVivo) return "vivo";
     if (!pronosticos || !pronosticos.length) return "pendiente";
-    const estados = pronosticos.map(pr => evaluarPronostico(pr, partido));
-    if (estados.includes("fallado"))            return "fallado";
-    if (estados.every(e => e === "acertado"))   return "acertado";
+    const evaluados = pronosticos.map(pr => ({
+      mercado: pr.mercado,
+      estado: evaluarPronostico(pr, partido)
+    }));
+    const evaluables = evaluados.filter(x => {
+      if (x.mercado === "Córners" && x.estado === "pendiente") return false;
+      return x.estado !== "pendiente";
+    });
+    if (!evaluables.length) return "pendiente";
+    if (evaluables.some(x => x.estado === "fallado")) return "fallado";
+    if (evaluables.every(x => x.estado === "acertado")) return "acertado";
     return "pendiente";
   }
 
