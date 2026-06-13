@@ -191,9 +191,99 @@
 
   const MERCADOS_PERMITIDOS = ["Goles", "Córners", "Doble oportunidad"];
 
+  /* ── Ligas compatibles con Apuesta Total ──────────────────────────── */
+
+  // Palabras que EXCLUYEN una liga del cupón (sin importar el nombre completo)
+  const PALABRAS_EXCLUIDAS = [
+    "youth", "u20", "u21", "u22", "u23", "u18", "u17", "u16", "u15",
+    "women", "femenin", "feminin", "ladies", "female",
+    "reserve", "reserva", "b team", "equipo b",
+    "amateur", "amateu",
+    "league two", "league one",
+    "regional", "academy", "academie",
+    "friendly", "amistoso", "amistós",
+    "futsal", "beach",
+    "sub-20", "sub-21", "sub-22", "sub-23", "sub20", "sub21", "sub23"
+  ];
+
+  // Fragmentos que INCLUYEN una liga (si contiene alguno de estos, pasa el filtro)
+  const FRAGMENTOS_PERMITIDOS = [
+    // Competiciones internacionales
+    "world cup", "copa mundial", "mundial",
+    "eliminatoria", "eliminatorias", "qualif",
+    "copa america", "copa américa",
+    "euro", "eurocopa",
+    "champions", "europa league", "conference league",
+    "nations league", "liga de naciones",
+    "copa libertadores", "libertadores",
+    "copa sudamericana", "sudamericana",
+    "recopa",
+    // Ligas top europeas
+    "premier league", "epl",
+    "la liga", "laliga",
+    "serie a",
+    "bundesliga",
+    "ligue 1",
+    "eredivisie",
+    "primeira liga", "liga nos",
+    "pro league", "jupiler",
+    "süper lig", "super lig",
+    // Ligas americanas
+    "liga 1", "liga1",           // Perú
+    "mls",
+    "liga mx", "liga bbva",
+    "brasileirao", "brasileiro", "serie a brasil",
+    "primera division", "primera división",
+    "superliga argentina",
+    "liga profesional",
+    "clausura", "apertura",      // contexto sudamericano
+    "copa del rey",
+    "fa cup", "carabao",
+    "dfb pokal", "dfb-pokal",
+    "coppa italia",
+    "coupe de france",
+    // Otros mercados grandes
+    "a-league", "a league",
+    "saudi pro", "saudi league",
+    "chinese super", "csl",
+    "j-league", "j1 league",
+    "k league",
+    "scottish premiership",
+    "scottish",
+    "serie b",                   // Italia y Brasil (serie b conocida)
+    "segunda division", "segunda división",
+    "championship",              // EFL Championship
+    "ligue 2",
+  ];
+
+  /**
+   * Devuelve true si la liga es compatible con Apuesta Total.
+   * Lógica:
+   *   1. Si contiene palabra excluida → false
+   *   2. Si contiene fragmento permitido → true
+   *   3. Si no matchea nada → false (no incluir ligas desconocidas)
+   */
+  function esLigaCompatibleApuestaTotal(liga) {
+    if (!liga) return false;
+    const l = liga.toLowerCase();
+
+    // Exclusión prioritaria
+    for (const ex of PALABRAS_EXCLUIDAS) {
+      if (l.includes(ex)) return false;
+    }
+
+    // Inclusión
+    for (const ok of FRAGMENTOS_PERMITIDOS) {
+      if (l.includes(ok)) return true;
+    }
+
+    return false; // por defecto no incluir
+  }
+
   /**
    * Genera hasta 5 picks con confianza ≥ 80%, máx 1 por partido,
-   * solo mercados permitidos, ordenados por confianza desc.
+   * solo mercados permitidos, solo ligas compatibles con Apuesta Total,
+   * ordenados por confianza desc.
    */
   function generarCuponSugerido(partidosAnalizados) {
     const picks = [];
@@ -206,6 +296,9 @@
 
     for (const p of ordenados) {
       if (partidosUsados.has(p.id)) continue;
+
+      // ── FILTRO DE LIGA ──────────────────────────────────────────────
+      if (!esLigaCompatibleApuestaTotal(p.liga)) continue;
 
       // El mejor pronóstico del partido que sea mercado permitido y ≥ 80%
       const mejorPron = p.pronosticos.find(pr =>
