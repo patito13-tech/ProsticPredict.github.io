@@ -2,6 +2,7 @@
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
    ---------------------------------------------------------------------
    Conexión preparada para APIfootball (apiv3.apifootball.com).
+   Corrección: evita carga infinita reduciendo llamadas bloqueantes.
    ===================================================================== */
 
 const RoprostData = (() => {
@@ -11,7 +12,10 @@ const RoprostData = (() => {
     API_HOST: "https://apiv3.apifootball.com/",
     LIGAS: [],
     DIA_OBJETIVO: "manana",
-    USAR_DEMO: false
+    USAR_DEMO: false,
+    TIMEOUT_API_MS: 12000,
+    MAX_FIXTURES: 80,
+    CARGAR_ULTIMOS_AL_INICIO: false
   };
 
   const cacheUltimos = new Map();
@@ -37,11 +41,20 @@ const RoprostData = (() => {
   }
 
   async function fetchAPI(params) {
-    const res = await fetch(urlAPI(params));
-    if (!res.ok) throw new Error(`API ${res.status}`);
-    const data = await res.json();
-    if (data && data.error) throw new Error(Array.isArray(data.error) ? data.error.join(" | ") : data.error);
-    return Array.isArray(data) ? data : [];
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_API_MS);
+    try {
+      const res = await fetch(urlAPI(params), { signal: controller.signal });
+      if (!res.ok) throw new Error(`API ${res.status}`);
+      const data = await res.json();
+      if (data && data.error) throw new Error(Array.isArray(data.error) ? data.error.join(" | ") : data.error);
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      if (e.name === "AbortError") throw new Error("Tiempo de espera agotado en APIfootball");
+      throw e;
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   function n(valor, fallback = 0) {
@@ -55,9 +68,6 @@ const RoprostData = (() => {
     const gaRaw = n(row?.overall_league_GA, 0) / pj;
     const gf = +(gfRaw > 0 ? gfRaw : 1.2).toFixed(2);
     const ga = +(gaRaw > 0 ? gaRaw : 1.2).toFixed(2);
-    // La tabla de posiciones (plan gratis) no trae córners: se ESTIMAN a
-    // partir del perfil ofensivo/defensivo, con más amplitud que antes para
-    // que el ritmo de córners varíe de un partido a otro.
     const clamp = (x, min, max) => Math.min(max, Math.max(min, x));
     const cf = +clamp(2.5 + gf * 2.2, 2.5, 8.5).toFixed(1);
     const ca = +clamp(2.5 + ga * 2.2, 2.5, 8.5).toFixed(1);
@@ -164,30 +174,42 @@ const RoprostData = (() => {
     const fecha = fechaObjetivo();
     const ligas = CONFIG.LIGAS.length ? CONFIG.LIGAS : [""];
     const partidos = [];
+
     for (const leagueId of ligas) {
-      const fixtures = await fixturesPorLiga(fecha, leagueId);
+      const fixtures = (await fixturesPorLiga(fecha, leagueId)).slice(0, CONFIG.MAX_FIXTURES);
       const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
       const standings = new Map();
-      for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
+
+      await Promise.all(leagueIds.map(async (lid) => {
+        standings.set(String(lid), await standingPorLiga(lid));
+      }));
+
       for (const fx of fixtures) {
         const mapa = standings.get(String(fx.league_id)) || new Map();
         const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
-        p.local.ultimos = await ultimosPartidosEquipo(p.local.id);
-        p.visitante.ultimos = await ultimosPartidosEquipo(p.visitante.id);
+
+        // Importante: no cargamos últimos partidos aquí porque bloqueaba toda la página.
+        // La página debe pintar primero; luego se puede crear una carga secundaria si hace falta.
+        p.local.ultimos = [];
+        p.visitante.ultimos = [];
+
         partidos.push(p);
       }
     }
+
     return partidos;
   }
 
   async function partidosSeguimiento() {
     try {
-      const fechas = [fechaPeru(-2), fechaPeru(-1), fechaPeru(0)];
+      const fechas = [fechaPeru(-1), fechaPeru(0)];
+      const resultados = await Promise.allSettled(fechas.map(fecha => fixturesPorLiga(fecha, "")));
       const rows = [];
-      for (const fecha of fechas) {
-        const fixtures = await fixturesPorLiga(fecha, "");
-        rows.push(...fixtures.map(fx => mapFixtureBasico(fx, fecha)));
-      }
+
+      resultados.forEach((r, i) => {
+        if (r.status === "fulfilled") rows.push(...r.value.map(fx => mapFixtureBasico(fx, fechas[i])));
+      });
+
       const unicos = new Map();
       rows.forEach(p => unicos.set(String(p.id), p));
       return [...unicos.values()]
@@ -205,8 +227,16 @@ const RoprostData = (() => {
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
       return { ...base, partidos: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
     }
+
     try {
-      const [partidos, seguimiento] = await Promise.all([partidosReales(), partidosSeguimiento()]);
+      const partidos = await partidosReales();
+
+      // No bloquea la carga principal: si falla o tarda, la página igual abre.
+      const seguimiento = await partidosSeguimiento().catch(e => {
+        console.warn("Seguimiento no disponible", e);
+        return [];
+      });
+
       return { ...base, partidos, seguimiento, finalizados: seguimiento.filter(p => p.finalizado) };
     } catch (e) {
       console.error("Error con la API:", e);
@@ -214,7 +244,7 @@ const RoprostData = (() => {
     }
   }
 
-  return { CONFIG, obtenerPartidos };
+  return { CONFIG, obtenerPartidos, ultimosPartidosEquipo };
 })();
 
 window.RoprostData = RoprostData;
