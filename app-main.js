@@ -545,6 +545,9 @@
     state.analizadosManana = RoprostEngine.analizarTodos(partidosManana || []);
 
     Hist.snapshotPredicciones([...state.analizadosHoy, ...state.analizadosManana]);
+    if (window.RoprostCornersRunner?.completarLista) {
+      state.seguimiento = await window.RoprostCornersRunner.completarLista(state.seguimiento);
+    }
     Hist.actualizarResultados(state.seguimiento);
     const entradasHist = Hist.entradasVisibles();
 
