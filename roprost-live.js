@@ -2,7 +2,7 @@
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
    ---------------------------------------------------------------------
    Conexión preparada para APIfootball (apiv3.apifootball.com).
-   Corrección: carga partidos de HOY y MAÑANA en una sola respuesta.
+   Corrección: carga HOY y MAÑANA sin bloquear por standings/seguimiento.
    ===================================================================== */
 
 const RoprostData = (() => {
@@ -13,9 +13,10 @@ const RoprostData = (() => {
     LIGAS: [],
     DIA_OBJETIVO: "manana",
     USAR_DEMO: false,
-    TIMEOUT_API_MS: 12000,
+    TIMEOUT_API_MS: 8000,
     MAX_FIXTURES_POR_DIA: 80,
-    CARGAR_ULTIMOS_AL_INICIO: false
+    CARGAR_STANDINGS_AL_INICIO: false,
+    CARGAR_SEGUIMIENTO_AL_INICIO: false
   };
 
   const cacheUltimos = new Map();
@@ -94,7 +95,7 @@ const RoprostData = (() => {
   function statsEquipo(fx, mapa, lado) {
     const id = lado === "home" ? fx.match_hometeam_id : fx.match_awayteam_id;
     const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
-    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
+    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: true };
   }
 
   function logoEquipo(fx, lado) {
@@ -149,7 +150,7 @@ const RoprostData = (() => {
     }
   }
 
-  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }) {
+  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: true }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: true }) {
     const estado = estadoNormalizado(fx);
     const cornersLocal = valorCorner(fx, "home");
     const cornersVisitante = valorCorner(fx, "away");
@@ -175,19 +176,25 @@ const RoprostData = (() => {
     const partidos = [];
 
     for (const leagueId of ligas) {
-      const fixtures = (await fixturesPorLiga(fecha, leagueId)).slice(0, CONFIG.MAX_FIXTURES_POR_DIA);
-      const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
-      const standings = new Map();
+      let fixtures = [];
+      try {
+        fixtures = (await fixturesPorLiga(fecha, leagueId)).slice(0, CONFIG.MAX_FIXTURES_POR_DIA);
+      } catch (e) {
+        console.warn("No se pudieron cargar fixtures", fecha, e);
+        continue;
+      }
 
-      await Promise.allSettled(leagueIds.map(async (lid) => {
-        standings.set(String(lid), await standingPorLiga(lid));
-      }));
+      const standings = new Map();
+      if (CONFIG.CARGAR_STANDINGS_AL_INICIO) {
+        const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))].slice(0, 8);
+        await Promise.allSettled(leagueIds.map(async (lid) => {
+          standings.set(String(lid), await standingPorLiga(lid));
+        }));
+      }
 
       for (const fx of fixtures) {
         const mapa = standings.get(String(fx.league_id)) || new Map();
         const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
-        p.local.ultimos = [];
-        p.visitante.ultimos = [];
         partidos.push(p);
       }
     }
@@ -217,6 +224,7 @@ const RoprostData = (() => {
   }
 
   async function partidosSeguimiento() {
+    if (!CONFIG.CARGAR_SEGUIMIENTO_AL_INICIO) return [];
     try {
       const fechas = [fechaPeru(-1), fechaPeru(0)];
       const resultados = await Promise.allSettled(fechas.map(fecha => fixturesPorLiga(fecha, "")));
