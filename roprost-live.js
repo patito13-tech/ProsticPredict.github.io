@@ -1,8 +1,5 @@
 /* =====================================================================
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
-   ---------------------------------------------------------------------
-   Conexión preparada para APIfootball (apiv3.apifootball.com).
-   Corrección: carga HOY y MAÑANA sin bloquear por standings/seguimiento.
    ===================================================================== */
 
 const RoprostData = (() => {
@@ -11,12 +8,8 @@ const RoprostData = (() => {
     API_KEY: "e202c0f5eebf36c56ec54c296fffe77587457afb2c8f2cf3bb216ca2578938d3",
     API_HOST: "https://apiv3.apifootball.com/",
     LIGAS: [],
-    DIA_OBJETIVO: "manana",
-    USAR_DEMO: false,
-    TIMEOUT_API_MS: 8000,
-    MAX_FIXTURES_POR_DIA: 80,
-    CARGAR_STANDINGS_AL_INICIO: false,
-    CARGAR_SEGUIMIENTO_AL_INICIO: false
+    DIA_OBJETIVO: "manana", // mantenido por compatibilidad, ya no limita la carga
+    USAR_DEMO: false
   };
 
   const cacheUltimos = new Map();
@@ -31,10 +24,6 @@ const RoprostData = (() => {
     return `${yyyy}-${mm}-${dd}`;
   }
 
-  function fechaObjetivo() {
-    return CONFIG.DIA_OBJETIVO === "hoy" ? fechaPeru(0) : fechaPeru(1);
-  }
-
   function urlAPI(params) {
     const finalParams = { ...params, APIkey: CONFIG.API_KEY };
     const qs = Object.keys(finalParams).map(k => `${encodeURIComponent(k)}=${encodeURIComponent(finalParams[k])}`).join("&");
@@ -42,20 +31,11 @@ const RoprostData = (() => {
   }
 
   async function fetchAPI(params) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), CONFIG.TIMEOUT_API_MS);
-    try {
-      const res = await fetch(urlAPI(params), { signal: controller.signal });
-      if (!res.ok) throw new Error(`API ${res.status}`);
-      const data = await res.json();
-      if (data && data.error) throw new Error(Array.isArray(data.error) ? data.error.join(" | ") : data.error);
-      return Array.isArray(data) ? data : [];
-    } catch (e) {
-      if (e.name === "AbortError") throw new Error("Tiempo de espera agotado en APIfootball");
-      throw e;
-    } finally {
-      clearTimeout(timer);
-    }
+    const res = await fetch(urlAPI(params));
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const data = await res.json();
+    if (data && data.error) throw new Error(Array.isArray(data.error) ? data.error.join(" | ") : data.error);
+    return Array.isArray(data) ? data : [];
   }
 
   function n(valor, fallback = 0) {
@@ -95,7 +75,7 @@ const RoprostData = (() => {
   function statsEquipo(fx, mapa, lado) {
     const id = lado === "home" ? fx.match_hometeam_id : fx.match_awayteam_id;
     const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
-    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: true };
+    return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase()) || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
   }
 
   function logoEquipo(fx, lado) {
@@ -124,10 +104,20 @@ const RoprostData = (() => {
     return null;
   }
 
-  async function fixturesPorLiga(fecha, leagueId) {
-    const params = { action: "get_events", from: fecha, to: fecha };
-    if (leagueId) params.league_id = leagueId;
-    return fetchAPI(params);
+  async function fixturesPorFecha(fecha) {
+    const ligas = CONFIG.LIGAS.length ? CONFIG.LIGAS : [""];
+    const todos = [];
+    for (const leagueId of ligas) {
+      const params = { action: "get_events", from: fecha, to: fecha };
+      if (leagueId) params.league_id = leagueId;
+      try {
+        const fixtures = await fetchAPI(params);
+        todos.push(...fixtures);
+      } catch (e) {
+        console.warn("Error cargando fixtures para fecha", fecha, e);
+      }
+    }
+    return todos;
   }
 
   async function ultimosPartidosEquipo(teamId) {
@@ -150,12 +140,12 @@ const RoprostData = (() => {
     }
   }
 
-  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: true }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: true }) {
+  function mapFixtureBasico(fx, fecha, statsL = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }, statsV = { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false }) {
     const estado = estadoNormalizado(fx);
     const cornersLocal = valorCorner(fx, "home");
     const cornersVisitante = valorCorner(fx, "away");
     return {
-      id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}-${fecha}`,
+      id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
       liga: fx.league_name || "Liga",
       fecha: fx.match_date || fecha,
       hora: fx.match_time || "--:--",
@@ -171,69 +161,31 @@ const RoprostData = (() => {
     };
   }
 
-  async function partidosPorFecha(fecha) {
-    const ligas = CONFIG.LIGAS.length ? CONFIG.LIGAS : [""];
+  // Carga y procesa fixtures de una fecha concreta con standings
+  async function cargarPartidosDeFecha(fecha) {
+    const fixtures = await fixturesPorFecha(fecha);
+    const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
+    const standings = new Map();
+    for (const lid of leagueIds) standings.set(String(lid), await standingPorLiga(lid));
     const partidos = [];
-
-    for (const leagueId of ligas) {
-      let fixtures = [];
-      try {
-        fixtures = (await fixturesPorLiga(fecha, leagueId)).slice(0, CONFIG.MAX_FIXTURES_POR_DIA);
-      } catch (e) {
-        console.warn("No se pudieron cargar fixtures", fecha, e);
-        continue;
-      }
-
-      const standings = new Map();
-      if (CONFIG.CARGAR_STANDINGS_AL_INICIO) {
-        const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))].slice(0, 8);
-        await Promise.allSettled(leagueIds.map(async (lid) => {
-          standings.set(String(lid), await standingPorLiga(lid));
-        }));
-      }
-
-      for (const fx of fixtures) {
-        const mapa = standings.get(String(fx.league_id)) || new Map();
-        const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
-        partidos.push(p);
-      }
+    for (const fx of fixtures) {
+      const mapa = standings.get(String(fx.league_id)) || new Map();
+      const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
+      p.local.ultimos = await ultimosPartidosEquipo(p.local.id);
+      p.visitante.ultimos = await ultimosPartidosEquipo(p.visitante.id);
+      partidos.push(p);
     }
-
     return partidos;
   }
 
-  async function partidosReales() {
-    const hoy = fechaPeru(0);
-    const manana = fechaPeru(1);
-
-    const resultados = await Promise.allSettled([
-      partidosPorFecha(hoy),
-      partidosPorFecha(manana)
-    ]);
-
-    const partidos = [];
-    if (resultados[0].status === "fulfilled") partidos.push(...resultados[0].value);
-    else console.warn("No se pudieron cargar partidos de hoy", resultados[0].reason);
-
-    if (resultados[1].status === "fulfilled") partidos.push(...resultados[1].value);
-    else console.warn("No se pudieron cargar partidos de mañana", resultados[1].reason);
-
-    const unicos = new Map();
-    partidos.forEach(p => unicos.set(String(p.id) + "-" + String(p.fecha), p));
-    return [...unicos.values()];
-  }
-
   async function partidosSeguimiento() {
-    if (!CONFIG.CARGAR_SEGUIMIENTO_AL_INICIO) return [];
     try {
-      const fechas = [fechaPeru(-1), fechaPeru(0)];
-      const resultados = await Promise.allSettled(fechas.map(fecha => fixturesPorLiga(fecha, "")));
+      const fechas = [fechaPeru(-2), fechaPeru(-1), fechaPeru(0)];
       const rows = [];
-
-      resultados.forEach((r, i) => {
-        if (r.status === "fulfilled") rows.push(...r.value.map(fx => mapFixtureBasico(fx, fechas[i])));
-      });
-
+      for (const fecha of fechas) {
+        const fixtures = await fixturesPorFecha(fecha);
+        rows.push(...fixtures.map(fx => mapFixtureBasico(fx, fecha)));
+      }
       const unicos = new Map();
       rows.forEach(p => unicos.set(String(p.id), p));
       return [...unicos.values()]
@@ -246,27 +198,40 @@ const RoprostData = (() => {
     }
   }
 
+  // MODIFICADO: ahora devuelve partidosHoy y partidosManana por separado
   async function obtenerPartidos() {
-    const base = { demo: false, dia: "ambos", fecha: fechaObjetivo(), error: null };
+    const fechaHoy    = fechaPeru(0);
+    const fechaManana = fechaPeru(1);
+    const base = { demo: false, dia: "ambos", fechaHoy, fechaManana, error: null };
+
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
-      return { ...base, partidos: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
+      return { ...base, partidos: [], partidosHoy: [], partidosManana: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
     }
 
     try {
-      const partidos = await partidosReales();
-      const seguimiento = await partidosSeguimiento().catch(e => {
-        console.warn("Seguimiento no disponible", e);
-        return [];
-      });
+      const [hoy, manana, seguimiento] = await Promise.all([
+        cargarPartidosDeFecha(fechaHoy),
+        cargarPartidosDeFecha(fechaManana),
+        partidosSeguimiento()
+      ]);
 
-      return { ...base, partidos, seguimiento, finalizados: seguimiento.filter(p => p.finalizado) };
+      return {
+        ...base,
+        // "partidos" sigue existiendo para no romper nada que lo use
+        partidos: [...hoy, ...manana],
+        partidosHoy: hoy,
+        partidosManana: manana,
+        seguimiento,
+        finalizados: seguimiento.filter(p => p.finalizado),
+        fecha: fechaManana  // compatibilidad con código anterior
+      };
     } catch (e) {
       console.error("Error con la API:", e);
-      return { ...base, partidos: [], seguimiento: [], finalizados: [], error: e.message };
+      return { ...base, partidos: [], partidosHoy: [], partidosManana: [], seguimiento: [], finalizados: [], error: e.message };
     }
   }
 
-  return { CONFIG, obtenerPartidos, ultimosPartidosEquipo };
+  return { CONFIG, obtenerPartidos };
 })();
 
 window.RoprostData = RoprostData;
