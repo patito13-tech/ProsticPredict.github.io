@@ -118,7 +118,6 @@
   }
 
   function etiquetaDia(dia) { return dia === "hoy" ? "hoy" : "mañana"; }
-  function tituloDia(dia) { return dia === "hoy" ? "Hoy" : "Mañana"; }
 
   function logo(src, nombre) {
     return src
@@ -133,25 +132,6 @@
       <p class="vacio">⚠️ No se encontraron partidos reales para ${diaTexto} en la API.</p>
       ${error ? `<p class="vacio">Detalle técnico: ${error}</p>` : ""}
     </section>`;
-  }
-
-  function renderPicks(picks, dia = "manana") {
-    const diaTexto = etiquetaDia(dia);
-    const diaTitulo = tituloDia(dia);
-    if (!picks.length) {
-      return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente</span>Picks de ${diaTitulo}</h2><p class="vacio">⚠️ Para ${diaTexto} no hay picks que superen el 80% de confianza. No forzamos recomendaciones.</p></section>`;
-    }
-    const items = picks.map((p, i) => `<article class="pick"><div class="pick-num">#${i + 1}</div><div class="pick-body"><div class="pick-top"><span class="pick-liga">${p.liga}</span>${chip(p.confianza)}</div><h3 class="pick-partido">${p.partido}</h3><div class="pick-pron">${p.etiqueta}</div><p class="pick-motivo">${p.motivo}</p></div></article>`).join("");
-    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 80%</span>Picks de ${diaTitulo}</h2><div class="picks-grid">${items}</div></section>`;
-  }
-
-  function renderTop(bets, dia = "manana") {
-    const diaTexto = etiquetaDia(dia);
-    if (!bets.length) {
-      return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Ranking de ${diaTexto}</span>Top Apuestas</h2><p class="vacio">No se encontraron apuestas suficientemente seguras para ${diaTexto}.</p></section>`;
-    }
-    const filas = bets.map((b, i) => `<li class="top-fila"><span class="top-rank">${i + 1}</span><div class="top-info"><span class="top-pron">${b.etiqueta}</span><span class="top-partido">${b.partido} · ${b.liga}</span></div>${chip(b.confianza)}</li>`).join("");
-    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Ranking de ${diaTexto} · de la más segura a la menos</span>Top Apuestas</h2><ul class="top-lista">${filas}</ul></section>`;
   }
 
   function renderFiltros(partidos, sufijo = "") {
@@ -202,94 +182,50 @@
 
   function renderSeguimiento(entradas = []) {
     const entradasMostrar = entradas.length > 0 ? entradas : Hist.todasEntradasConProns();
-
     if (!entradasMostrar.length) {
       return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2><p class="vacio">Aún no hay partidos en vivo o finalizados con pronósticos guardados. Aparecerán aquí en cuanto empiecen y se conservarán 24 horas.</p></section>`;
     }
-
     let ganados = 0, perdidos = 0, vivos = 0, pendientes = 0;
-
-    const rows = entradasMostrar.slice(0, 30).map((p, index) => {
+    const rows = entradasMostrar.slice(0, 30).map((p) => {
       const tieneMarcador = (p.golesLocal !== "" && p.golesVisitante !== "" && p.golesLocal !== undefined && p.golesVisitante !== undefined);
-      const estadoCombinada = p.finalizado
-        ? RoprostEngine.evaluarCombinada(p.pronosticos, p)
-        : p.enVivo ? "vivo" : "pendiente";
-
+      const estadoCombinada = p.finalizado ? RoprostEngine.evaluarCombinada(p) : (p.enVivo ? "vivo" : "pendiente");
       if (estadoCombinada === "acertado") ganados++;
       else if (estadoCombinada === "fallado") perdidos++;
       else if (estadoCombinada === "vivo") vivos++;
       else pendientes++;
-
-      const marcador = tieneMarcador ? `${p.golesLocal}-${p.golesVisitante}` : "vs";
-      const pronosticos = p.pronosticos && p.pronosticos.length ? p.pronosticos : [];
-      const detalle = pronosticos.length ? pronosticos.map(pr => {
-        const estadoPr = p.finalizado
-          ? RoprostEngine.evaluarPronostico(pr, p)
-          : p.enVivo ? "vivo" : "pendiente";
-        const etiquetaEstado = (estadoPr === "pendiente" && pr.mercado === "Córners") ? "No evaluable" : estadoTexto(estadoPr);
-        return `<div class="historial-pron ${estadoPr}"><span>${pr.etiqueta}</span><b>${etiquetaEstado}</b></div>`;
-      }).join("") : `<div class="historial-pron pendiente"><span>Sin pronósticos evaluables</span><b>Pendiente</b></div>`;
-
-      const etiquetaCard = p.enVivo
-        ? "🔴 En vivo"
-        : p.finalizado
-          ? estadoTexto(estadoCombinada)
-          : `⏳ ${p.hora || "Pendiente"}`;
-
-      return `<article class="historial-card ${estadoCombinada} ${index === 0 ? "open" : ""}">
-        <button class="historial-head" aria-expanded="${index === 0 ? "true" : "false"}">
-          <div><strong>${p.local.name} ${marcador} ${p.visitante.name}</strong><span>${p.liga} · ${p.fecha} · ${p.hora}</span></div>
-          <b>${etiquetaCard}</b>
-          <span class="historial-caret">▾</span>
-        </button>
-        <div class="historial-body">${detalle}<p class="historial-nota">La apuesta completa cuenta como perdida si falla al menos un pronóstico. Los córners sin datos quedan como "No evaluable". Registro disponible 24 h.</p></div>
-      </article>`;
+      return `<article class="hist-card"><div class="hist-top"><span>${p.liga}</span><strong>${estadoTexto(estadoCombinada)}</strong></div><h3>${p.local.name} vs ${p.visitante.name}</h3><p>${p.fecha} · ${p.hora}</p><p>Marcador: ${tieneMarcador ? `${p.golesLocal}-${p.golesVisitante}` : "—"}</p></article>`;
     }).join("");
-
-    const total = ganados + perdidos;
-    const precision = total ? Math.round((ganados / total) * 100) : null;
-    const precisionStr = precision !== null
-      ? `<div><strong>${precision}%</strong><span>Precisión</span></div>`
-      : "";
-
-    return `<section class="bloque">
-      <h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2>
-      <div class="historial-resumen">
-        <div><strong>${ganados}</strong><span>✅ Ganados</span></div>
-        <div><strong>${perdidos}</strong><span>❌ Perdidos</span></div>
-        <div><strong>${vivos}</strong><span>🔴 En vivo</span></div>
-        <div><strong>${pendientes}</strong><span>⏳ Pendientes</span></div>
-        ${precisionStr}
-      </div>
-      <div class="historial-lista">${rows}</div>
-    </section>`;
+    const totalResueltos = ganados + perdidos;
+    const pct = totalResueltos ? Math.round((ganados / totalResueltos) * 100) : 0;
+    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Historial y vivo · últimas 24 h</span>Resultados / En vivo</h2><div class="resumen-grid"><div><strong>${ganados}</strong><span>Ganados</span></div><div><strong>${perdidos}</strong><span>Perdidos</span></div><div><strong>${vivos}</strong><span>En vivo</span></div><div><strong>${pendientes}</strong><span>Pendientes</span></div><div><strong>${pct}%</strong><span>Acierto</span></div></div><div class="hist-list">${rows}</div></section>`;
   }
 
-  function aplicarFiltros(fuente, dia, sufijo) {
-    const q = ($(`#buscador-partidos${sufijo}`)?.value || "").toLowerCase().trim();
+  function aplicarFiltros(base, dia, sufijo) {
+    const q = $(`#buscador-partidos${sufijo}`)?.value?.toLowerCase().trim() || "";
     const liga = $(`#filtro-liga${sufijo}`)?.value || "";
-    const filtrados = fuente.filter(p => {
+    const filtrados = base.filter(p => {
       const texto = `${p.liga} ${p.local.name} ${p.visitante.name}`.toLowerCase();
       return (!q || texto.includes(q)) && (!liga || p.liga === liga);
     });
     const cont = $(`#bloque-partidos${sufijo}`);
-    if (cont) {
-      cont.outerHTML = renderPartidos(filtrados, dia, state.fecha, sufijo);
-      activarAcordeon();
-      $(`#buscador-partidos${sufijo}`)?.addEventListener("input", () => aplicarFiltros(fuente, dia, sufijo));
-      $(`#filtro-liga${sufijo}`)?.addEventListener("change", () => aplicarFiltros(fuente, dia, sufijo));
-    }
+    if (cont) cont.outerHTML = renderPartidos(filtrados, dia, dia === "hoy" ? fechaHoy() : state.fecha, sufijo);
+    activarAcordeon();
   }
 
   function activarAcordeon() {
-    document.querySelectorAll(".liga-head").forEach(btn => {
-      btn.onclick = () => { const g = btn.closest(".liga-grupo"); const a = g.classList.toggle("open"); btn.setAttribute("aria-expanded", a); };
-    });
     document.querySelectorAll(".match-head").forEach(btn => {
-      btn.onclick = () => { const c = btn.closest(".match"); const a = c.classList.toggle("open"); btn.setAttribute("aria-expanded", a); };
+      btn.onclick = () => {
+        const card = btn.closest(".match");
+        const open = card.classList.toggle("open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      };
     });
-    document.querySelectorAll(".historial-head").forEach(btn => {
-      btn.onclick = () => { const c = btn.closest(".historial-card"); const a = c.classList.toggle("open"); btn.setAttribute("aria-expanded", a); };
+    document.querySelectorAll(".liga-head").forEach(btn => {
+      btn.onclick = () => {
+        const grupo = btn.closest(".liga-grupo");
+        const open = grupo.classList.toggle("open");
+        btn.setAttribute("aria-expanded", open ? "true" : "false");
+      };
     });
   }
 
@@ -350,9 +286,6 @@
     Hist.actualizarResultados(state.seguimiento);
     const entradasHist = Hist.entradasVisibles();
 
-    const picks = RoprostEngine.picksDelDia(state.analizados);
-    const top   = RoprostEngine.topApuestas(state.analizados);
-
     const htmlHoy = state.analizadosHoy.length
       ? renderFiltros(state.analizadosHoy, "-hoy") + renderPartidos(state.analizadosHoy, "hoy", hoyStr, "-hoy")
       : renderSinPartidos("hoy", hoyStr);
@@ -362,8 +295,6 @@
       : renderSinPartidos("manana", fecha, error);
 
     const tabs = [
-      { id: "picks",           label: "Picks",           icono: "🎯", html: renderPicks(picks, dia) },
-      { id: "top",             label: "Top",             icono: "🏆", html: renderTop(top, dia) },
       { id: "partidos-hoy",    label: "Partidos Hoy",    icono: "📅", html: htmlHoy },
       { id: "partidos-manana", label: "Partidos Mañana", icono: "📅", html: htmlManana },
       { id: "historial",       label: "Resultados",      icono: "📊", html: renderSeguimiento(entradasHist) }
