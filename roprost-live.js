@@ -2,7 +2,7 @@
    ROPROST PREDICT — CAPA DE DATOS REALES (roprost-live.js)
    ---------------------------------------------------------------------
    Conexión preparada para APIfootball (apiv3.apifootball.com).
-   Corrección: evita carga infinita reduciendo llamadas bloqueantes.
+   Corrección: carga partidos de HOY y MAÑANA en una sola respuesta.
    ===================================================================== */
 
 const RoprostData = (() => {
@@ -14,7 +14,7 @@ const RoprostData = (() => {
     DIA_OBJETIVO: "manana",
     USAR_DEMO: false,
     TIMEOUT_API_MS: 12000,
-    MAX_FIXTURES: 80,
+    MAX_FIXTURES_POR_DIA: 80,
     CARGAR_ULTIMOS_AL_INICIO: false
   };
 
@@ -154,7 +154,7 @@ const RoprostData = (() => {
     const cornersLocal = valorCorner(fx, "home");
     const cornersVisitante = valorCorner(fx, "away");
     return {
-      id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
+      id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}-${fecha}`,
       liga: fx.league_name || "Liga",
       fecha: fx.match_date || fecha,
       hora: fx.match_time || "--:--",
@@ -170,34 +170,50 @@ const RoprostData = (() => {
     };
   }
 
-  async function partidosReales() {
-    const fecha = fechaObjetivo();
+  async function partidosPorFecha(fecha) {
     const ligas = CONFIG.LIGAS.length ? CONFIG.LIGAS : [""];
     const partidos = [];
 
     for (const leagueId of ligas) {
-      const fixtures = (await fixturesPorLiga(fecha, leagueId)).slice(0, CONFIG.MAX_FIXTURES);
+      const fixtures = (await fixturesPorLiga(fecha, leagueId)).slice(0, CONFIG.MAX_FIXTURES_POR_DIA);
       const leagueIds = [...new Set(fixtures.map(fx => fx.league_id).filter(Boolean))];
       const standings = new Map();
 
-      await Promise.all(leagueIds.map(async (lid) => {
+      await Promise.allSettled(leagueIds.map(async (lid) => {
         standings.set(String(lid), await standingPorLiga(lid));
       }));
 
       for (const fx of fixtures) {
         const mapa = standings.get(String(fx.league_id)) || new Map();
         const p = mapFixtureBasico(fx, fecha, statsEquipo(fx, mapa, "home"), statsEquipo(fx, mapa, "away"));
-
-        // Importante: no cargamos últimos partidos aquí porque bloqueaba toda la página.
-        // La página debe pintar primero; luego se puede crear una carga secundaria si hace falta.
         p.local.ultimos = [];
         p.visitante.ultimos = [];
-
         partidos.push(p);
       }
     }
 
     return partidos;
+  }
+
+  async function partidosReales() {
+    const hoy = fechaPeru(0);
+    const manana = fechaPeru(1);
+
+    const resultados = await Promise.allSettled([
+      partidosPorFecha(hoy),
+      partidosPorFecha(manana)
+    ]);
+
+    const partidos = [];
+    if (resultados[0].status === "fulfilled") partidos.push(...resultados[0].value);
+    else console.warn("No se pudieron cargar partidos de hoy", resultados[0].reason);
+
+    if (resultados[1].status === "fulfilled") partidos.push(...resultados[1].value);
+    else console.warn("No se pudieron cargar partidos de mañana", resultados[1].reason);
+
+    const unicos = new Map();
+    partidos.forEach(p => unicos.set(String(p.id) + "-" + String(p.fecha), p));
+    return [...unicos.values()];
   }
 
   async function partidosSeguimiento() {
@@ -223,15 +239,13 @@ const RoprostData = (() => {
   }
 
   async function obtenerPartidos() {
-    const base = { demo: false, dia: CONFIG.DIA_OBJETIVO, fecha: fechaObjetivo(), error: null };
+    const base = { demo: false, dia: "ambos", fecha: fechaObjetivo(), error: null };
     if (CONFIG.USAR_DEMO || !CONFIG.API_KEY || CONFIG.API_KEY === "PEGA_TU_API_KEY_AQUI") {
       return { ...base, partidos: [], seguimiento: [], finalizados: [], error: "API KEY no configurada." };
     }
 
     try {
       const partidos = await partidosReales();
-
-      // No bloquea la carga principal: si falla o tarda, la página igual abre.
       const seguimiento = await partidosSeguimiento().catch(e => {
         console.warn("Seguimiento no disponible", e);
         return [];
