@@ -1,7 +1,7 @@
 /* =====================================================================
    ROPROST PREDICT — RUNNER DE CÓRNERS REALES
    Solo consulta API-Sports cuando:
-   1) El partido está finalizado.
+   1) El partido está finalizado o ya tiene marcador real.
    2) Tiene pronóstico de córners.
    3) Todavía no tiene córners guardados.
    ===================================================================== */
@@ -12,6 +12,11 @@ const RoprostCornersRunner = (() => {
   function esNumeroValido(v) {
     if (v === null || v === undefined || v === "") return false;
     return Number.isFinite(Number(v));
+  }
+
+  function tieneMarcadorReal(partido) {
+    return esNumeroValido(partido?.golesLocal) &&
+           esNumeroValido(partido?.golesVisitante);
   }
 
   function tieneCornersGuardados(partido) {
@@ -29,7 +34,14 @@ const RoprostCornersRunner = (() => {
   async function completarPartido(partido) {
     if (!partido) return partido;
 
-    if (!partido.finalizado) return partido;
+    const marcadorReal = tieneMarcadorReal(partido);
+
+    if (marcadorReal) {
+      partido.finalizado = true;
+      partido.enVivo = false;
+    }
+
+    if (!partido.finalizado && !marcadorReal) return partido;
     if (!tienePickCorners(partido)) return partido;
     if (tieneCornersGuardados(partido)) return partido;
     if (!window.RoprostCornersAPI?.obtenerCorners) return partido;
