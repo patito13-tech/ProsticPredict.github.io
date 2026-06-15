@@ -189,7 +189,10 @@
      CUPÓN SUGERIDO
      ================================================================ */
 
-  const MERCADOS_PERMITIDOS = ["Goles", "Córners", "Doble oportunidad"];
+  const MERCADOS_PERMITIDOS = [
+    "Doble oportunidad", "Ambos anotan", "Goles local", "Goles visitante",
+    "Goles", "Resultado", "No empate", "Córners"
+  ];
 
   /* ── Ligas compatibles con Apuesta Total ──────────────────────────── */
 
