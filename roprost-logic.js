@@ -16,6 +16,11 @@ const RoprostEngine = (() => {
     UMBRAL_GOLES:        72,   // mínimo para mostrar línea de goles
     UMBRAL_DOBLE:        72,   // mínimo para doble oportunidad
     UMBRAL_CORNERS:      78,   // más estricto porque son estimados
+    // ── Mercados que se evalúan SOLO con el marcador final (nunca "No evaluable") ──
+    UMBRAL_AMBOS:        72,   // ambos equipos anotan (Sí/No)
+    UMBRAL_GOL_EQUIPO:   72,   // goles del local / del visitante
+    UMBRAL_RESULTADO:    72,   // 1X2 (resultado final)
+    UMBRAL_NO_EMPATE:    72,   // no empate (12)
     MAX_PICKS_PARTIDO:    3,
     MAX_TOP_APUESTAS:    10,
     MAX_PICKS_DIA:        5,
@@ -25,7 +30,23 @@ const RoprostEngine = (() => {
     MAX_GOLES_MATRIZ:     8,
     // Evaluamos TODAS estas líneas y elegimos la más informativa
     LINEAS_GOLES:    [0.5, 1.5, 2.5, 3.5, 4.5, 5.5],
+    LINEAS_GOL_EQUIPO: [0.5, 1.5, 2.5],   // líneas individuales por equipo (over)
     LINEAS_CORNERS:  [0.5, 1.5, 2.5, 3.5, 4.5, 5.5, 6.5, 7.5, 8.5, 9.5, 10.5, 11.5]
+  };
+
+  /* Orden de preferencia cuando varias apuestas tienen confianza similar.
+     Menor número = mayor prioridad. Los córners quedan al final porque sus
+     datos finales rara vez llegan (suelen terminar como "No evaluable"); así
+     se priorizan los mercados que se resuelven solo con el marcador final. */
+  const PRIORIDAD = {
+    "Doble oportunidad": 1,
+    "Ambos anotan":      2,
+    "Goles local":       3,
+    "Goles visitante":   4,
+    "Goles":             5,   // total de goles
+    "Resultado":         6,
+    "No empate":         7,
+    "Córners":           9    // legado: siempre el último
   };
 
   /* ── Poisson ─────────────────────────────────────────────────────── */
@@ -55,6 +76,28 @@ const RoprostEngine = (() => {
     // Ajuste por tipo de partido: equipos muy ofensivos generan más corners
     const factorOfensivo = Math.min(1.15, (local.gf + visitante.gf) / 2.8);
     return +(base * factorOfensivo).toFixed(2);
+  }
+
+  /* ── Mercados por marcador final ─────────────────────────────────── */
+  // Ambos equipos anotan: P(local≥1) · P(visita≥1) bajo Poisson independiente
+  function probAmbosAnotan(lh, la) {
+    const pLocalMarca  = 1 - Math.exp(-lh);
+    const pVisitaMarca = 1 - Math.exp(-la);
+    const si = pLocalMarca * pVisitaMarca;
+    return { si: si * 100, no: (1 - si) * 100 };
+  }
+
+  // Mejor línea OVER para un solo equipo (Local/Visitante marca +X.5)
+  function mejorLineaEquipo(lambda, umbral) {
+    const cand = [];
+    for (const linea of CONFIG.LINEAS_GOL_EQUIPO) {
+      const pOver = poissonOver(linea, lambda) * 100;
+      if (pOver >= umbral) cand.push({ linea, prob: pOver, dist: Math.abs(lambda - linea) });
+    }
+    if (!cand.length) return null;
+    // La más informativa (cercana al lambda del equipo); desempate por probabilidad
+    cand.sort((a, b) => (a.dist - b.dist) || (b.prob - a.prob));
+    return cand[0];
   }
 
   function matrizMarcadores(lh, la) {
@@ -169,6 +212,30 @@ const RoprostEngine = (() => {
     return `${visitante.name} tiene ${eVisit.toFixed(0)}% de probabilidad de ganar o empatar. La doble oportunidad X2 es la salida más conservadora para este partido.`;
   }
 
+  function motivoAmbos(sel, lh, la, local, visitante) {
+    const pl = ((1 - Math.exp(-lh)) * 100).toFixed(0);
+    const pv = ((1 - Math.exp(-la)) * 100).toFixed(0);
+    if (sel.sel === "btts_si")
+      return `${local.name} marca con ${pl}% de probabilidad y ${visitante.name} con ${pv}%. Lo más probable es que ambos anoten: "Ambos equipos anotan: Sí". Se evalúa solo con el marcador final.`;
+    return `Baja probabilidad de que ambos marquen (${local.name} ${pl}%, ${visitante.name} ${pv}%). Lo más seguro es "Ambos equipos anotan: No". Se evalúa solo con el marcador final.`;
+  }
+
+  function motivoGolEquipo(nombre, res, lambda, lado) {
+    return `${nombre} (${lado}) proyecta ≈${lambda.toFixed(2)} goles. "Marca más de ${res.linea} goles" es su línea individual más segura (${res.prob.toFixed(0)}%). Se evalúa solo con los goles finales de ${nombre}.`;
+  }
+
+  function motivoResultado(res, local, visitante, mercado) {
+    const pl = (mercado.local * 100).toFixed(0);
+    const pe = (mercado.empate * 100).toFixed(0);
+    const pv = (mercado.visita * 100).toFixed(0);
+    return `Probabilidades 1X2: ${local.name} ${pl}%, empate ${pe}%, ${visitante.name} ${pv}%. "${res.etiqueta}" es el desenlace más probable. Se evalúa solo con el marcador final.`;
+  }
+
+  function motivoNoEmpate(local, visitante, mercado) {
+    const p = ((mercado.local + mercado.visita) * 100).toFixed(0);
+    return `Hay ${p}% de probabilidad de que el partido NO termine en empate. "No empate (12)" gana si vence cualquiera de los dos equipos. Se evalúa solo con el marcador final.`;
+  }
+
   /* ── Análisis de un partido ──────────────────────────────────────── */
   function analizarPartido(partido) {
     const { local, visitante } = partido;
@@ -249,8 +316,80 @@ const RoprostEngine = (() => {
       });
     }
 
-    /* ── Ordenar por confianza, 1 mercado por tipo, máx 3 ── */
-    candidatos.sort((a, b) => b.prob - a.prob);
+    /* ── 4. AMBOS EQUIPOS ANOTAN (Sí/No · solo marcador final) ── */
+    const amb = probAmbosAnotan(lambdaLocal, lambdaVisitante);
+    const ambMejor = amb.si >= amb.no
+      ? { etiqueta: "Ambos equipos anotan: Sí", prob: amb.si, sel: "btts_si" }
+      : { etiqueta: "Ambos equipos anotan: No", prob: amb.no, sel: "btts_no" };
+    if (ambMejor.prob >= CONFIG.UMBRAL_AMBOS) {
+      candidatos.push({
+        ...ambMejor,
+        mercado: "Ambos anotan",
+        motivo:  motivoAmbos(ambMejor, lambdaLocal, lambdaVisitante, local, visitante)
+      });
+    }
+
+    /* ── 5. GOLES DEL LOCAL (over · solo marcador final) ── */
+    const rGL = mejorLineaEquipo(lambdaLocal, CONFIG.UMBRAL_GOL_EQUIPO);
+    if (rGL) {
+      candidatos.push({
+        etiqueta: `${local.name} marca más de ${rGL.linea} goles`,
+        prob:     rGL.prob,
+        sel:      `gl_over_${rGL.linea}`,
+        mercado:  "Goles local",
+        motivo:   motivoGolEquipo(local.name, rGL, lambdaLocal, "local")
+      });
+    }
+
+    /* ── 6. GOLES DEL VISITANTE (over · solo marcador final) ── */
+    const rGV = mejorLineaEquipo(lambdaVisitante, CONFIG.UMBRAL_GOL_EQUIPO);
+    if (rGV) {
+      candidatos.push({
+        etiqueta: `${visitante.name} marca más de ${rGV.linea} goles`,
+        prob:     rGV.prob,
+        sel:      `gv_over_${rGV.linea}`,
+        mercado:  "Goles visitante",
+        motivo:   motivoGolEquipo(visitante.name, rGV, lambdaVisitante, "visitante")
+      });
+    }
+
+    /* ── 7. RESULTADO FINAL (1X2 · solo marcador final) ── */
+    const resCand = [
+      { etiqueta: `${local.name} gana (1)`,     prob: mercado.local  * 100, sel: "res_local"  },
+      { etiqueta: `Empate (X)`,                 prob: mercado.empate * 100, sel: "res_empate" },
+      { etiqueta: `${visitante.name} gana (2)`, prob: mercado.visita * 100, sel: "res_visita" }
+    ].sort((a, b) => b.prob - a.prob)[0];
+    if (resCand.prob >= CONFIG.UMBRAL_RESULTADO) {
+      candidatos.push({
+        ...resCand,
+        mercado: "Resultado",
+        motivo:  motivoResultado(resCand, local, visitante, mercado)
+      });
+    }
+
+    /* ── 8. NO EMPATE (12 · solo marcador final) ── */
+    const pNoEmpate = (mercado.local + mercado.visita) * 100;
+    if (pNoEmpate >= CONFIG.UMBRAL_NO_EMPATE) {
+      candidatos.push({
+        etiqueta: "No empate (12)",
+        prob:     pNoEmpate,
+        sel:      "no_empate",
+        mercado:  "No empate",
+        motivo:   motivoNoEmpate(local, visitante, mercado)
+      });
+    }
+
+    /* ── Ordenar: córners SIEMPRE al final (relleno de último recurso,
+          porque sus datos finales rara vez llegan → "No evaluable").
+          Entre el resto: más seguras primero y, ante confianza similar,
+          se respeta la prioridad de mercados. 1 por tipo, máx 3. ── */
+    const esCorner = m => (m === "Córners" ? 1 : 0);
+    candidatos.sort((a, b) =>
+      (esCorner(a.mercado) - esCorner(b.mercado)) ||
+      (Math.round(b.prob) - Math.round(a.prob)) ||
+      ((PRIORIDAD[a.mercado] ?? 99) - (PRIORIDAD[b.mercado] ?? 99)) ||
+      (b.prob - a.prob)
+    );
     const usados = new Set();
     const seleccionados = [];
     for (const c of candidatos) {
@@ -270,6 +409,7 @@ const RoprostEngine = (() => {
         riesgo:     riesgo.texto,
         riesgoClase:riesgo.clase,
         mercado:    c.mercado,
+        sel:        c.sel || "",
         motivo:     c.motivo
       };
     });
@@ -335,6 +475,11 @@ const RoprostEngine = (() => {
     return m ? parseFloat(m[0]) : NaN;
   }
 
+  function lineaDeSel(sel) {
+    const m = String(sel || "").match(/(\d+(?:\.\d+)?)\s*$/);
+    return m ? parseFloat(m[1]) : NaN;
+  }
+
   function numReal(v) {
     if (v === "" || v === null || v === undefined) return NaN;
     const x = Number(v);
@@ -370,6 +515,45 @@ const RoprostEngine = (() => {
       if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
       if (texto.includes("(1X)")) return (gl >= gv) ? "acertado" : "fallado";
       if (texto.includes("(X2)")) return (gv >= gl) ? "acertado" : "fallado";
+    }
+
+    /* ── Mercados que se resuelven SOLO con el marcador final ── */
+    if (pr.mercado === "Ambos anotan") {
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+      const ambosMarcan = gl >= 1 && gv >= 1;
+      const quiereSi = pr.sel ? pr.sel === "btts_si" : /:\s*s[íi]\b/i.test(texto);
+      return (quiereSi === ambosMarcan) ? "acertado" : "fallado";
+    }
+
+    if (pr.mercado === "Goles local") {
+      if (!Number.isFinite(gl)) return "pendiente";
+      const linea = Number.isFinite(lineaDeSel(pr.sel)) ? lineaDeSel(pr.sel) : lineaDeTexto(texto);
+      if (!Number.isFinite(linea)) return "pendiente";
+      return gl > linea ? "acertado" : "fallado";
+    }
+
+    if (pr.mercado === "Goles visitante") {
+      if (!Number.isFinite(gv)) return "pendiente";
+      const linea = Number.isFinite(lineaDeSel(pr.sel)) ? lineaDeSel(pr.sel) : lineaDeTexto(texto);
+      if (!Number.isFinite(linea)) return "pendiente";
+      return gv > linea ? "acertado" : "fallado";
+    }
+
+    if (pr.mercado === "Resultado") {
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+      const s = pr.sel
+        || (texto.includes("(1)") ? "res_local"
+          : texto.includes("(2)") ? "res_visita"
+          : texto.includes("(X)") ? "res_empate" : "");
+      if (s === "res_local")  return gl >  gv ? "acertado" : "fallado";
+      if (s === "res_empate") return gl === gv ? "acertado" : "fallado";
+      if (s === "res_visita") return gv >  gl ? "acertado" : "fallado";
+      return "pendiente";
+    }
+
+    if (pr.mercado === "No empate") {
+      if (!Number.isFinite(gl) || !Number.isFinite(gv)) return "pendiente";
+      return gl !== gv ? "acertado" : "fallado";
     }
 
     return "pendiente";
