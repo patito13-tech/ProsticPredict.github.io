@@ -169,6 +169,23 @@
     </div>`;
   }
 
+  function renderAlertaIA(p) {
+    const a = p.alertaIA;
+    if (!a || !a.alerta || !a.mensaje) return "";
+    const clase = a.nivel === "alto" ? "rp-alerta-alta" : "rp-alerta-media";
+    return `<div class="rp-alerta ${clase}">${a.mensaje}</div>`;
+  }
+
+  function renderAnalisisIA(p) {
+    if (!p.analisisIA) return "";
+    const corners = p.cornersInfo ? `<div class="rp-analisis-corners">🚩 ${p.cornersInfo}</div>` : "";
+    return `<div class="rp-analisis">
+      <div class="rp-analisis-title">🧠 Análisis IA</div>
+      <p class="rp-analisis-text">${p.analisisIA}</p>
+      ${corners}
+    </div>`;
+  }
+
   /* ── Card de partido ──────────────────────────────────────────────── */
   function cardPartido(p) {
     const idoneo = p.hayValor;
@@ -176,7 +193,7 @@
     const detalle = idoneo
       ? p.pronosticos.map(pr => `<div class="pron"><span class="pron-check">✅</span><span class="pron-text">${pr.etiqueta}<small class="riesgo ${pr.riesgoClase || ""}">${pr.riesgo || pr.nivel}</small>${pr.motivo ? `<small style="${motivoEstilo}">${pr.motivo}</small>` : ""}</span>${chip(pr.confianza)}</div>`).join("")
       : `<p class="vacio">${p.sinDatos ? "🔒 Sin pick seguro" : "⚠️ Sin pick seguro"} · ${p.motivoGeneral || "No hay líneas que superen el umbral de confianza."}</p>`;
-    return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderProbabilidades(p)}${renderFortaleza(p)}${detalle}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
+    return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderAlertaIA(p)}${renderProbabilidades(p)}${renderFortaleza(p)}${detalle}${renderAnalisisIA(p)}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
   }
 
   /* ── Lista de partidos ────────────────────────────────────────────── */
@@ -211,10 +228,10 @@
       const marcador = tieneMarcador ? `${p.golesLocal}-${p.golesVisitante}` : "vs";
       const prons = p.pronosticos && p.pronosticos.length ? p.pronosticos : [];
       const detalle = prons.length
-        ? prons.map(pr => { const ePr = p.finalizado ? RoprostEngine.evaluarPronostico(pr, p) : p.enVivo ? "vivo" : "pendiente"; const etiq = (ePr === "pendiente" && pr.mercado === "Córners") ? "No evaluable" : estadoTexto(ePr); return `<div class="historial-pron ${ePr}"><span>${pr.etiqueta}</span><b>${etiq}</b></div>`; }).join("")
+        ? prons.map(pr => { const ePr = p.finalizado ? RoprostEngine.evaluarPronostico(pr, p) : p.enVivo ? "vivo" : "pendiente"; const etiq = (ePr === "pendiente" && pr.mercado === "Córners") ? "IA: datos insuficientes" : estadoTexto(ePr); return `<div class="historial-pron ${ePr}"><span>${pr.etiqueta}</span><b>${etiq}</b></div>`; }).join("")
         : `<div class="historial-pron pendiente"><span>Sin pronósticos evaluables</span><b>Pendiente</b></div>`;
       const etiqCard = p.enVivo ? "🔴 En vivo" : p.finalizado ? estadoTexto(estadoComb) : `⏳ ${p.hora || "Pendiente"}`;
-      return `<article class="historial-card ${estadoComb} ${idx === 0 ? "open" : ""}"><button class="historial-head" aria-expanded="${idx === 0}"><div><strong>${p.local.name} ${marcador} ${p.visitante.name}</strong><span>${p.liga} · ${p.fecha} · ${p.hora}</span></div><b>${etiqCard}</b><span class="historial-caret">▾</span></button><div class="historial-body">${detalle}<p class="historial-nota">La apuesta completa cuenta como perdida si falla al menos un pronóstico. Los córners sin datos quedan como "No evaluable". Registro disponible 24 h.</p></div></article>`;
+      return `<article class="historial-card ${estadoComb} ${idx === 0 ? "open" : ""}"><button class="historial-head" aria-expanded="${idx === 0}"><div><strong>${p.local.name} ${marcador} ${p.visitante.name}</strong><span>${p.liga} · ${p.fecha} · ${p.hora}</span></div><b>${etiqCard}</b><span class="historial-caret">▾</span></button><div class="historial-body">${detalle}<p class="historial-nota">La apuesta completa cuenta como perdida si falla al menos un pronóstico. Los córners sin datos quedan marcados por la IA como "datos insuficientes". Registro disponible 24 h.</p></div></article>`;
     }).join("");
 
     const total = ganados + perdidos;
