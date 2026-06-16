@@ -103,9 +103,9 @@
 
   /* ── Picks ────────────────────────────────────────────────────────── */
   function renderPicks(picks) {
-    if (!picks.length) return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente</span>Picks de mañana</h2><p class="vacio">⚠️ No hay picks que superen el 85% de confianza para mañana. No forzamos recomendaciones.</p></section>`;
+    if (!picks.length) return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 88%</span>Pick del día</h2><p class="vacio">Hoy no hay pick del día realmente seguro. Mejor no forzar apuesta.</p></section>`;
     const items = picks.map((p, i) => `<article class="pick"><div class="pick-num">#${i + 1}</div><div class="pick-body"><div class="pick-top"><span class="pick-liga">${p.liga}</span>${chip(p.confianza)}</div><h3 class="pick-partido">${p.partido}</h3><div class="pick-pron">${p.etiqueta}</div><p class="pick-motivo">${p.motivo}</p></div></article>`).join("");
-    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 85%</span>Picks de mañana</h2><div class="picks-grid">${items}</div></section>`;
+    return `<section class="bloque"><h2 class="bloque-titulo"><span class="eyebrow">Lo más exigente · mín. 88%</span>Pick del día</h2><div class="picks-grid">${items}</div></section>`;
   }
 
   /* ── Top ──────────────────────────────────────────────────────────── */
@@ -180,20 +180,32 @@
     if (!p.analisisIA) return "";
     const corners = p.cornersInfo ? `<div class="rp-analisis-corners">🚩 ${p.cornersInfo}</div>` : "";
     return `<div class="rp-analisis">
-      <div class="rp-analisis-title">🧠 Análisis IA</div>
+      <div class="rp-analisis-title">🧠 Análisis IA completo</div>
       <p class="rp-analisis-text">${p.analisisIA}</p>
       ${corners}
     </div>`;
   }
 
+  /* Conclusión visible del partido: 🟢 Recomendable / 🟡 Cautela / 🔴 Evitar */
+  function renderEstadoIA(p) {
+    const e = p.estadoIA;
+    if (!e) return "";
+    return `<div class="estado-ia ${e.clase}"><span class="estado-ia-emoji">${e.emoji}</span><span class="estado-ia-texto">${e.texto}</span></div>`;
+  }
+
   /* ── Card de partido ──────────────────────────────────────────────── */
   function cardPartido(p) {
     const idoneo = p.hayValor;
+    const e = p.estadoIA || {};
     const motivoEstilo = "display:block;margin-top:4px;font-size:11.5px;line-height:1.5;color:var(--txt-faint)";
     const detalle = idoneo
-      ? p.pronosticos.map(pr => `<div class="pron"><span class="pron-check">✅</span><span class="pron-text">${pr.etiqueta}<small class="riesgo ${pr.riesgoClase || ""}">${pr.riesgo || pr.nivel}</small>${pr.motivo ? `<small style="${motivoEstilo}">${pr.motivo}</small>` : ""}</span>${chip(pr.confianza)}</div>`).join("")
-      : `<p class="vacio">${p.sinDatos ? "🔒 Sin pick seguro" : "⚠️ Sin pick seguro"} · ${p.motivoGeneral || "No hay líneas que superen el umbral de confianza."}</p>`;
-    return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderAlertaIA(p)}${renderProbabilidades(p)}${renderFortaleza(p)}${detalle}${renderAnalisisIA(p)}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
+      ? p.pronosticos.map((pr, i) => {
+          const tagPrincipal = i === 0 ? `<small class="pron-tag-principal">Pick principal</small>` : "";
+          const tagExtra = pr.extra ? `<small class="pron-tag-extra">Extra</small>` : "";
+          return `<div class="pron"><span class="pron-check">✅</span><span class="pron-text">${pr.etiqueta} ${tagPrincipal}${tagExtra}<small class="riesgo ${pr.riesgoClase || ""}">${pr.riesgo || pr.nivel}</small>${pr.motivo ? `<small style="${motivoEstilo}">${pr.motivo}</small>` : ""}</span>${chip(pr.confianza)}</div>`;
+        }).join("")
+      : `<p class="vacio">🔒 Sin pick seguro: mejor evitar este partido.</p>`;
+    return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="estado-ia-dot ${e.clase || ""}" title="${e.texto || ""}">${e.emoji || ""}</span><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body">${renderEstadoIA(p)}<div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderAlertaIA(p)}${renderProbabilidades(p)}<div class="pron-principal-label">📌 Pronóstico${p.pronosticos.length > 1 ? "s" : ""}</div>${detalle}${renderFortaleza(p)}${renderAnalisisIA(p)}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
   }
 
   /* ── Lista de partidos ────────────────────────────────────────────── */
