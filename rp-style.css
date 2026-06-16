@@ -1,4 +1,4 @@
-/* =====================================================================
+ /* =====================================================================
    ROPROST PREDICT — ESTILOS  (rp-style.css)
    ---------------------------------------------------------------------
    Rediseño "sala de análisis" — tablero de apuestas con datos en
@@ -502,6 +502,40 @@ body {
 }
 .rp-alerta-media {
   background:rgba(245,197,24,.09); border:1px solid rgba(245,197,24,.40); color:#f1d27a;
+}
+
+/* ---- Estado IA: conclusión visible del partido ---- */
+.estado-ia {
+  display:flex; align-items:center; gap:8px;
+  margin:2px 0 12px; padding:9px 13px; border-radius:11px;
+  font-size:13px; font-weight:700; letter-spacing:.01em;
+  border:1px solid var(--border-soft);
+}
+.estado-ia-emoji { font-size:15px; line-height:1; }
+.estado-ia.estado-recomendable {
+  background:rgba(46,226,122,.10); border-color:rgba(46,226,122,.45); color:#7ef0ad;
+}
+.estado-ia.estado-cautela {
+  background:rgba(245,197,24,.10); border-color:rgba(245,197,24,.42); color:#f1d27a;
+}
+.estado-ia.estado-evitar {
+  background:rgba(248,113,122,.10); border-color:rgba(248,113,122,.45); color:#f8a3a8;
+}
+/* Punto-emoji compacto en la cabecera (visible sin desplegar) */
+.estado-ia-dot { font-size:14px; line-height:1; margin-right:1px; }
+
+/* Etiquetas de pick */
+.pron-principal-label {
+  font-size:11px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color:var(--txt-mut); margin:10px 0 4px;
+}
+.pron-tag-principal {
+  display:inline-block; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:#7ef0ad; background:rgba(46,226,122,.12); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:middle;
+}
+.pron-tag-extra {
+  display:inline-block; font-size:9.5px; font-weight:700; text-transform:uppercase; letter-spacing:.04em;
+  color:var(--txt-mut); background:rgba(255,255,255,.06); border-radius:5px; padding:1px 6px; margin-left:6px; vertical-align:middle;
 }
 
 
