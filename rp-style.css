@@ -479,6 +479,31 @@ body {
   border-radius:20px; padding:2px 9px;
 }
 
+/* ---- 12c. ANÁLISIS IA + ALERTA ANTI-TRAMPAS ----------------------- */
+.rp-analisis {
+  margin-top:13px; padding:12px;
+  background:linear-gradient(140deg,rgba(46,226,122,.06),var(--surface));
+  border:1px solid var(--border-soft); border-left:3px solid var(--accent);
+  border-radius:12px;
+}
+.rp-analisis-title {
+  font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:7px;
+}
+.rp-analisis-text { font-size:12.5px; line-height:1.6; color:var(--txt); margin:0; }
+.rp-analisis-corners { margin-top:8px; font-size:11.5px; color:var(--txt-faint); font-style:italic; }
+
+.rp-alerta {
+  margin:6px 0 4px; padding:9px 12px; border-radius:10px;
+  font-size:12px; font-weight:600; line-height:1.45;
+}
+.rp-alerta-alta {
+  background:rgba(248,113,122,.10); border:1px solid rgba(248,113,122,.45); color:#f8a3a8;
+}
+.rp-alerta-media {
+  background:rgba(245,197,24,.09); border:1px solid rgba(245,197,24,.40); color:#f1d27a;
+}
+
 
 /* ---- 13. HISTORIAL / RESULTADOS / EN VIVO -------------------------- */
 .historial-resumen { display:grid; grid-template-columns:repeat(4,1fr); gap:9px; margin-bottom:14px; }
