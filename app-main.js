@@ -132,6 +132,43 @@
     return `<div class="ultimos-equipo"><strong>${nombre}</strong>${ultimos.map(u => `<span>${u.fecha} · ${u.local} ${u.marcador} ${u.visitante}</span>`).join("")}</div>`;
   }
 
+  /* ── ⭐ Fortaleza Local / Visitante ───────────────────────────────── */
+  function pctSeguro(parte, total) { return total ? Math.round((parte / total) * 100) : 0; }
+
+  function colFortaleza(nombre, sub, s) {
+    if (!s || !s.pj) {
+      return `<div class="rp-fort-col"><span class="rp-fort-team">${nombre}</span><span class="rp-fort-sub">${sub}</span><span class="rp-fort-empty">Sin datos de localía</span></div>`;
+    }
+    const pv = pctSeguro(s.w, s.pj), pe = pctSeguro(s.d, s.pj), pl = pctSeguro(s.l, s.pj);
+    return `<div class="rp-fort-col">
+      <span class="rp-fort-team">${nombre}</span>
+      <span class="rp-fort-sub">${sub} · ${s.pj} PJ</span>
+      <div class="rp-fort-wdl"><b>${s.w}</b> V · <b>${s.d}</b> E · <b>${s.l}</b> D</div>
+      <div class="rp-fort-bar" role="img" aria-label="Victorias ${pv}%, empates ${pe}%, derrotas ${pl}%">
+        <span class="rp-bar-w" style="width:${pv}%"></span>
+        <span class="rp-bar-d" style="width:${pe}%"></span>
+        <span class="rp-bar-l" style="width:${pl}%"></span>
+      </div>
+      <span class="rp-fort-pcts">${pv}% V · ${pe}% E · ${pl}% D</span>
+      <span class="rp-fort-goals">⚽ ${(+s.gf).toFixed(1)} GF · 🛡️ ${(+s.ga).toFixed(1)} GC / partido</span>
+    </div>`;
+  }
+
+  function renderFortaleza(p) {
+    const h = p.local.home, a = p.visitante.away;
+    if (!h && !a) return "";
+    return `<div class="rp-fort">
+      <div class="rp-fort-title">⭐ Fortaleza Local / Visitante</div>
+      <div class="rp-fort-grid">
+        ${colFortaleza(p.local.name, "Local en casa", h)}
+        ${colFortaleza(p.visitante.name, "Visitante fuera", a)}
+      </div>
+      <div class="rp-forma" data-forma="${p.id}" data-localid="${p.local.id || ""}" data-visitaid="${p.visitante.id || ""}" data-loaded="0">
+        <div class="rp-forma-load">📈 Forma y racha se cargan al abrir el partido…</div>
+      </div>
+    </div>`;
+  }
+
   /* ── Card de partido ──────────────────────────────────────────────── */
   function cardPartido(p) {
     const idoneo = p.hayValor;
@@ -139,7 +176,7 @@
     const detalle = idoneo
       ? p.pronosticos.map(pr => `<div class="pron"><span class="pron-check">✅</span><span class="pron-text">${pr.etiqueta}<small class="riesgo ${pr.riesgoClase || ""}">${pr.riesgo || pr.nivel}</small>${pr.motivo ? `<small style="${motivoEstilo}">${pr.motivo}</small>` : ""}</span>${chip(pr.confianza)}</div>`).join("")
       : `<p class="vacio">${p.sinDatos ? "🔒 Sin pick seguro" : "⚠️ Sin pick seguro"} · ${p.motivoGeneral || "No hay líneas que superen el umbral de confianza."}</p>`;
-    return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderProbabilidades(p)}${detalle}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
+    return `<article class="match" data-id="${p.id}"><button class="match-head" aria-expanded="false"><div class="match-meta"><span class="match-liga">${p.liga}</span><span class="match-hora">${p.fecha} · ${p.hora}</span></div><div class="match-teams"><span class="team-line">${logo(p.local.logo, p.local.name)}${p.local.name}</span><span class="vs">vs</span><span class="team-line">${logo(p.visitante.logo, p.visitante.name)}${p.visitante.name}</span></div><div class="match-conf"><span class="match-conf-label">Confianza IA</span>${idoneo ? chip(p.confianzaGeneral) : `<span class="chip chip-off">—</span>`}<span class="caret">▾</span></div></button><div class="match-body"><div class="match-tag">${p.tipoPartido === "ABIERTO" ? "🔥 Partido abierto" : p.tipoPartido === "CERRADO" ? "🛡️ Partido cerrado" : "⚖️ Partido equilibrado"}</div>${renderProbabilidades(p)}${renderFortaleza(p)}${detalle}<div class="ultimos-grid">${renderUltimos(p.local.name, p.local.ultimos)}${renderUltimos(p.visitante.name, p.visitante.ultimos)}</div></div></article>`;
   }
 
   /* ── Lista de partidos ────────────────────────────────────────────── */
@@ -190,8 +227,7 @@
      ================================================================ */
 
   const MERCADOS_PERMITIDOS = [
-    "Doble oportunidad", "Ambos anotan", "Goles local", "Goles visitante",
-    "Goles", "Resultado", "No empate", "Córners"
+    "Doble oportunidad", "Goles favorito", "Goles", "Córners"
   ];
 
   /* ── Ligas compatibles con Apuesta Total ──────────────────────────── */
