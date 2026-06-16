@@ -62,7 +62,16 @@ const RoprostData = (() => {
       ga: aPJ ? +(n(row?.away_league_GA, 0) / aPJ).toFixed(2) : ga
     };
 
-    return { gf, ga, cf, ca, statsReales: true, home, away };
+    return { gf, ga, cf, ca, statsReales: true, home, away,
+      pos: n(row?.overall_league_position, 0) || null,
+      overall: {
+        pj: n(row?.overall_league_payed, 0),
+        w:  n(row?.overall_league_W, 0),
+        d:  n(row?.overall_league_D, 0),
+        l:  n(row?.overall_league_L, 0),
+        pts: n(row?.overall_league_PTS, 0)
+      }
+    };
   }
 
   async function standingPorLiga(leagueId) {
@@ -86,7 +95,7 @@ const RoprostData = (() => {
     const id   = lado === "home" ? fx.match_hometeam_id   : fx.match_awayteam_id;
     const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
     return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase())
-      || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null };
+      || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null, pos: null, overall: null };
   }
 
   function logoEquipo(fx, lado) {
@@ -113,8 +122,8 @@ const RoprostData = (() => {
   }
 
   function mapFixture(fx, fecha, statsL, statsV) {
-    const sL = statsL || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null };
-    const sV = statsV || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null };
+    const sL = statsL || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null, pos: null, overall: null };
+    const sV = statsV || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null, pos: null, overall: null };
     const estado = estadoNormalizado(fx);
     return {
       id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
