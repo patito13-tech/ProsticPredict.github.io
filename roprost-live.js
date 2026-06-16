@@ -46,7 +46,23 @@ const RoprostData = (() => {
     const clamp = (x, a, b) => Math.min(b, Math.max(a, x));
     const cf  = +clamp(2.5 + gf * 2.2, 2.5, 8.5).toFixed(1);
     const ca  = +clamp(2.5 + ga * 2.2, 2.5, 8.5).toFixed(1);
-    return { gf, ga, cf, ca, statsReales: true };
+
+    // Splits casa/fuera: la API ya los envía (home_league_*, away_league_*),
+    // antes se ignoraban. Se usan para Fortaleza y para afinar el motor.
+    const hPJ = n(row?.home_league_payed, 0);
+    const aPJ = n(row?.away_league_payed, 0);
+    const home = {
+      pj: hPJ, w: n(row?.home_league_W, 0), d: n(row?.home_league_D, 0), l: n(row?.home_league_L, 0),
+      gf: hPJ ? +(n(row?.home_league_GF, 0) / hPJ).toFixed(2) : gf,
+      ga: hPJ ? +(n(row?.home_league_GA, 0) / hPJ).toFixed(2) : ga
+    };
+    const away = {
+      pj: aPJ, w: n(row?.away_league_W, 0), d: n(row?.away_league_D, 0), l: n(row?.away_league_L, 0),
+      gf: aPJ ? +(n(row?.away_league_GF, 0) / aPJ).toFixed(2) : gf,
+      ga: aPJ ? +(n(row?.away_league_GA, 0) / aPJ).toFixed(2) : ga
+    };
+
+    return { gf, ga, cf, ca, statsReales: true, home, away };
   }
 
   async function standingPorLiga(leagueId) {
@@ -70,7 +86,7 @@ const RoprostData = (() => {
     const id   = lado === "home" ? fx.match_hometeam_id   : fx.match_awayteam_id;
     const name = lado === "home" ? fx.match_hometeam_name : fx.match_awayteam_name;
     return mapa.get(String(id)) || mapa.get(String(name || "").toLowerCase())
-      || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
+      || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null };
   }
 
   function logoEquipo(fx, lado) {
@@ -97,8 +113,8 @@ const RoprostData = (() => {
   }
 
   function mapFixture(fx, fecha, statsL, statsV) {
-    const sL = statsL || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
-    const sV = statsV || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false };
+    const sL = statsL || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null };
+    const sV = statsV || { gf: 1.2, ga: 1.2, cf: 4.5, ca: 4.5, statsReales: false, home: null, away: null };
     const estado = estadoNormalizado(fx);
     return {
       id: fx.match_id || `${fx.match_hometeam_name}-${fx.match_awayteam_name}`,
