@@ -246,6 +246,111 @@ const RoprostEngine = (() => {
     return `Hay ${p}% de probabilidad de que el partido NO termine en empate. "No empate (12)" gana si vence cualquiera de los dos equipos. Se evalúa solo con el marcador final.`;
   }
 
+  /* ═══════════════════════════════════════════════════════════════════
+     ANÁLISIS INTELIGENTE — La IA estudia el partido, redacta su conclusión
+     y detecta partidos peligrosos. Todo a partir de datos reales.
+     ═══════════════════════════════════════════════════════════════════ */
+
+  function ordinal(n) { return Number.isFinite(n) && n > 0 ? `${n}º` : "—"; }
+
+  // Perfil del equipo según dónde juega ESTE partido (local→casa, visita→fuera)
+  function perfilEquipo(team, lado) {
+    const s = lado === "local" ? team.home : team.away;
+    const usar = (s && s.pj) ? s : null;
+    return {
+      pj:     usar ? usar.pj : 0,
+      w:      usar ? usar.w  : 0,
+      d:      usar ? usar.d  : 0,
+      l:      usar ? usar.l  : 0,
+      gf:     usar ? usar.gf : team.gf,
+      ga:     usar ? usar.ga : team.ga,
+      winPct: (usar && usar.pj) ? Math.round((usar.w / usar.pj) * 100) : null,
+      pos:    Number.isFinite(team.pos) ? team.pos : null
+    };
+  }
+
+  // Conjunto de señales reales que la IA pondera (no una sola estadística)
+  function calcularSenales(local, visitante, ctx) {
+    const { lambdaLocal, lambdaVisitante, lambdaGoles, lambdaCorners, mercado, datosCornersFiables } = ctx;
+    const pl = perfilEquipo(local, "local");
+    const pv = perfilEquipo(visitante, "visitante");
+    return {
+      pl, pv,
+      ofensivaLocal:  lambdaLocal,
+      ofensivaVisit:  lambdaVisitante,
+      gapGoles:       Math.abs(lambdaLocal - lambdaVisitante),
+      overUnder:      lambdaGoles >= 2.8 ? "over" : lambdaGoles <= 2.1 ? "under" : "neutro",
+      cornersLean:    lambdaCorners >= 10 ? "alto" : lambdaCorners <= 8 ? "bajo" : "medio",
+      datosCornersFiables,
+      probMax:        Math.max(mercado.local, mercado.empate, mercado.visita),
+      favorito:       mercado.local >= mercado.visita ? "local" : "visitante"
+    };
+  }
+
+  // Redacta la conclusión del analista a partir de las 3-4 señales más decisivas
+  function generarRazonamiento(local, visitante, ctx, senales, pronosticos) {
+    const { lambdaGoles } = ctx;
+    const { pl, pv } = senales;
+    const frases = [];
+
+    if (pl.pj) frases.push(`${local.name} como local registra ${pl.w}V-${pl.d}E-${pl.l}D (${pl.winPct}% de victorias), marca ${pl.gf.toFixed(1)} y recibe ${pl.ga.toFixed(1)} goles por partido.`);
+    if (pv.pj) frases.push(`${visitante.name} fuera de casa suma ${pv.w}V-${pv.d}E-${pv.l}D y encaja ${pv.ga.toFixed(1)} goles de promedio.`);
+
+    if (pl.pos && pv.pos) {
+      const dif = Math.abs(pl.pos - pv.pos);
+      frases.push(dif >= 6
+        ? `Hay diferencia de nivel en la tabla (${ordinal(pl.pos)} frente a ${ordinal(pv.pos)}), lo que favorece al mejor situado.`
+        : `Están próximos en la tabla (${ordinal(pl.pos)} y ${ordinal(pv.pos)}): partido más parejo de lo que parece.`);
+    }
+
+    frases.push(
+      senales.overUnder === "over"   ? `El modelo proyecta ≈${lambdaGoles.toFixed(1)} goles totales: tendencia ofensiva, escenario de over.`
+    : senales.overUnder === "under"  ? `El modelo proyecta ≈${lambdaGoles.toFixed(1)} goles: partido cerrado, escenario de under.`
+    :                                  `El modelo proyecta ≈${lambdaGoles.toFixed(1)} goles, valores equilibrados.`
+    );
+
+    const top = pronosticos[0];
+    if (top) frases.push(`Conclusión IA: tras comparar los mercados, la opción más sólida es «${top.etiqueta}» con ${top.confianza}% de confianza.`);
+    else     frases.push(`Conclusión IA: ningún mercado supera el umbral de seguridad; no se recomienda apostar este partido.`);
+
+    return frases.join(" ");
+  }
+
+  // Filtro anti-trampas: detecta riesgo SOLO con señales reales del modelo
+  function evaluarRiesgo(local, visitante, ctx, senales, pronosticos) {
+    const mejor = pronosticos[0] ? pronosticos[0].confianza : 0;
+    const razones = [];
+    let nivel = "bajo";
+
+    // Partido impredecible: ningún desenlace claro y sin mercado fuerte
+    if (senales.probMax < 0.45 && mejor < 75) {
+      razones.push("ningún resultado se impone con claridad y no hay mercado de alta confianza");
+      nivel = "alto";
+    }
+    // Favorito sobrevalorado: gran probabilidad de un lado pero goles esperados casi iguales
+    if (senales.probMax > 0.60 && senales.gapGoles < 0.40) {
+      razones.push("el favorito lo es por margen estrecho de goles esperados (favorito sobrevalorado)");
+      if (nivel !== "alto") nivel = "medio";
+    }
+    // Inconsistencia casa/fuera marcada
+    const irregular = (t, lado) => {
+      const s = lado === "local" ? t.home : t.away;
+      const o = lado === "local" ? t.away : t.home;
+      if (s && o && s.pj >= 4 && o.pj >= 4) return Math.abs((s.w / s.pj) - (o.w / o.pj)) >= 0.45;
+      return false;
+    };
+    if (irregular(local, "local") || irregular(visitante, "visitante")) {
+      razones.push("uno de los equipos es muy irregular según juegue de local o visitante");
+      if (nivel === "bajo") nivel = "medio";
+    }
+
+    const alerta  = nivel !== "bajo";
+    const mensaje = alerta
+      ? `⚠ Partido de ${nivel === "alto" ? "alta" : "cierta"} incertidumbre: ${razones.join("; ")}. Evitar apuestas agresivas.`
+      : "";
+    return { alerta, nivel, mensaje, razones };
+  }
+
   /* ── Análisis de un partido ──────────────────────────────────────── */
   function analizarPartido(partido) {
     const { local, visitante } = partido;
@@ -275,6 +380,9 @@ const RoprostEngine = (() => {
 
     if (!datosSuficientes) {
       return { ...base, pronosticos: [], confianzaGeneral: 0, hayValor: false, sinDatos: true,
+        analisisIA: "IA: No hay datos reales suficientes de estos equipos para un análisis fiable. No se recomienda apostar este partido.",
+        alertaIA: { alerta: true, nivel: "alto", mensaje: "⚠ Sin datos suficientes para analizar. Evitar apuestas.", razones: ["faltan estadísticas reales"] },
+        cornersInfo: "IA: Datos insuficientes para evaluar córners con confianza.",
         motivoGeneral: "Sin pick seguro: faltan datos reales del equipo." };
     }
 
@@ -331,13 +439,13 @@ const RoprostEngine = (() => {
       });
     }
 
-    /* ── 4. CÓRNERS · solo relleno de último recurso y si hay datos fiables ──
-          Si los stats son genéricos (cf=ca=4.5) subimos mucho el umbral. ── */
+    /* ── 4. CÓRNERS · se mantienen (mejores cuotas). Compiten por confianza.
+          Si los stats son genéricos (cf=ca=4.5) la estimación NO es fiable:
+          subimos mucho el umbral y avisamos con mensaje de IA. ── */
     const statsDefaultLocal = !local.statsReales || (local.cf === 4.5 && local.ca === 4.5);
     const statsDefaultVisit = !visitante.statsReales || (visitante.cf === 4.5 && visitante.ca === 4.5);
-    const umbralCornersEfectivo = (statsDefaultLocal || statsDefaultVisit)
-      ? 88   // muy estricto si son estimaciones genéricas
-      : CONFIG.UMBRAL_CORNERS;
+    const datosCornersFiables = !(statsDefaultLocal || statsDefaultVisit);
+    const umbralCornersEfectivo = datosCornersFiables ? CONFIG.UMBRAL_CORNERS : 88;
 
     const rCorners = mejorLinea(CONFIG.LINEAS_CORNERS, lambdaCorners, umbralCornersEfectivo, tipoPartido);
     if (rCorners) {
@@ -349,13 +457,10 @@ const RoprostEngine = (() => {
       });
     }
 
-    /* ── Ordenar: córners SIEMPRE al final (relleno de último recurso,
-          porque sus datos finales rara vez llegan → "No evaluable").
-          Entre el resto: más seguras primero y, ante confianza similar,
-          se respeta la prioridad de mercados. 1 por tipo, máx 3. ── */
-    const esCorner = m => (m === "Córners" ? 1 : 0);
+    /* ── Ordenar: la IA compara todos los mercados y elige los más fuertes.
+          Más seguras primero; ante confianza similar, prioridad de mercado.
+          1 por tipo, máx 3. Córners compite de forma normal (mejores cuotas). ── */
     candidatos.sort((a, b) =>
-      (esCorner(a.mercado) - esCorner(b.mercado)) ||
       (Math.round(b.prob) - Math.round(a.prob)) ||
       ((PRIORIDAD[a.mercado] ?? 99) - (PRIORIDAD[b.mercado] ?? 99)) ||
       (b.prob - a.prob)
@@ -388,12 +493,23 @@ const RoprostEngine = (() => {
       ? Math.round(pronosticos.reduce((s, p) => s + p.confianza, 0) / pronosticos.length)
       : 0;
 
+    // ── La IA estudia el partido, redacta su conclusión y detecta riesgo ──
+    const ctxIA = { lambdaLocal, lambdaVisitante, lambdaGoles, lambdaCorners, mercado, datosCornersFiables };
+    const senales      = calcularSenales(local, visitante, ctxIA);
+    const analisisIA    = generarRazonamiento(local, visitante, ctxIA, senales, pronosticos);
+    const alertaIA      = evaluarRiesgo(local, visitante, ctxIA, senales, pronosticos);
+    const cornersInfo   = (!datosCornersFiables && !pronosticos.some(p => p.mercado === "Córners"))
+      ? "IA: Datos insuficientes para evaluar córners con confianza." : "";
+
     return {
       ...base,
       pronosticos,
       confianzaGeneral,
       hayValor:       pronosticos.length > 0,
       sinDatos:       false,
+      analisisIA,
+      alertaIA,
+      cornersInfo,
       motivoGeneral:  pronosticos.length ? "" : "Sin pick seguro: ninguna línea supera el umbral de confianza."
     };
   }
