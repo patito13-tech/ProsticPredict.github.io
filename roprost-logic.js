@@ -13,18 +13,23 @@
 const RoprostEngine = (() => {
 
   const CONFIG = {
-    UMBRAL_GOLES:        70,   // mínimo para mostrar línea de goles
-    UMBRAL_DOBLE:        70,   // mínimo para doble oportunidad
-    UMBRAL_CORNERS:      78,   // más estricto porque son estimados
+    UMBRAL_GOLES:        80,   // mínimo para mostrar línea de goles (más exigente)
+    UMBRAL_DOBLE:        80,   // mínimo para doble oportunidad
+    UMBRAL_CORNERS:           82,   // córners con datos REALES de córners
+    UMBRAL_CORNERS_ESTIMADO:  90,   // córners ESTIMADOS (caso por defecto del modelo)
     // ── Mercados que se evalúan SOLO con el marcador final (nunca "No evaluable") ──
     UMBRAL_AMBOS:        70,   // (heredado) ambos equipos anotan
-    UMBRAL_GOL_EQUIPO:   70,   // equipo favorito marca +0.5
+    UMBRAL_GOL_EQUIPO:   80,   // equipo favorito marca +0.5
     UMBRAL_RESULTADO:    70,   // (heredado) 1X2
     UMBRAL_NO_EMPATE:    70,   // (heredado) no empate (ahora dentro de Doble)
-    MAX_PICKS_PARTIDO:    3,
+    MAX_PICKS_PARTIDO:    3,   // (heredado) techo absoluto
+    MAX_PICKS_NORMAL:     2,   // máximo por partido en condiciones normales
+    MAX_PICKS_PREMIUM:    3,   // solo se permite el 3º si TODOS superan el umbral premium
+    UMBRAL_TERCER_PICK:  88,   // todos los picks deben superarlo para permitir un 3º
+    TOP_MINIMO:          80,   // Top Apuestas: nunca por debajo de esto (sin rebajar)
     MAX_TOP_APUESTAS:    10,
     MAX_PICKS_DIA:        5,
-    PICK_DIA_MINIMO:     85,   // solo lo realmente seguro
+    PICK_DIA_MINIMO:     88,   // Pick del día: solo lo realmente seguro
     VENTAJA_LOCAL:       1.10,
     AJUSTE_VISITANTE:    0.95,
     MAX_GOLES_MATRIZ:     8,
@@ -288,8 +293,8 @@ const RoprostEngine = (() => {
   }
 
   // Redacta la conclusión del analista a partir de las 3-4 señales más decisivas
-  function generarRazonamiento(local, visitante, ctx, senales, pronosticos) {
-    const { lambdaGoles } = ctx;
+  function generarRazonamiento(local, visitante, ctx, senales, pronosticos, estadoIA) {
+    const { lambdaGoles, mercado } = ctx;
     const { pl, pv } = senales;
     const frases = [];
 
@@ -309,11 +314,41 @@ const RoprostEngine = (() => {
     :                                  `El modelo proyecta ≈${lambdaGoles.toFixed(1)} goles, valores equilibrados.`
     );
 
+    // Diferencia entre equipos + riesgo de empate (señales que pide el análisis pro)
+    if (senales.gapGoles < 0.40)
+      frases.push(`La diferencia ofensiva entre ambos es estrecha (≈${senales.gapGoles.toFixed(2)} goles): partido más parejo de lo que sugiere el favorito.`);
+    const empPct = Math.round((mercado?.empate || 0) * 100);
+    if (empPct >= 30)
+      frases.push(`Atención: el empate tiene una probabilidad considerable (${empPct}%), lo que añade riesgo a las apuestas de resultado directo.`);
+
     const top = pronosticos[0];
-    if (top) frases.push(`Conclusión IA: tras comparar los mercados, la opción más sólida es «${top.etiqueta}» con ${top.confianza}% de confianza.`);
-    else     frases.push(`Conclusión IA: ningún mercado supera el umbral de seguridad; no se recomienda apostar este partido.`);
+    if (top) {
+      const cierre = !estadoIA ? ""
+        : estadoIA.nivel === "evitar"   ? " Aun así, el escenario es arriesgado: mejor no apostar este partido."
+        : estadoIA.nivel === "cautela"  ? " Conviene limitarse a esa opción conservadora y evitar apuestas agresivas."
+        :                                 " El pick principal ofrece un margen de seguridad sólido.";
+      const cab = estadoIA ? `Conclusión IA — ${estadoIA.texto}:` : "Conclusión IA:";
+      frases.push(`${cab} tras comparar los mercados, la opción más sólida es «${top.etiqueta}» con ${top.confianza}% de confianza.${cierre}`);
+    } else {
+      frases.push(`Conclusión IA — Mejor evitar: ningún mercado supera el umbral de seguridad; no se recomienda apostar este partido.`);
+    }
 
     return frases.join(" ");
+  }
+
+  /* Estado global del partido para la tarjeta: 🟢 recomendable / 🟡 cautela / 🔴 evitar.
+     Combina la confianza del pick principal, las alertas de riesgo y el empate. */
+  function calcularEstadoIA(pronosticos, alertaIA, mercado, datosSuficientes) {
+    if (!datosSuficientes || !pronosticos.length)
+      return { nivel: "evitar", emoji: "🔴", texto: "Mejor evitar", clase: "estado-evitar" };
+    const mejor = pronosticos[0].confianza;
+    const empateAlto = (mercado?.empate || 0) >= 0.32;
+    const nivelRiesgo = alertaIA?.nivel || "bajo";
+    if (nivelRiesgo === "alto" || mejor < 80)
+      return { nivel: "evitar", emoji: "🔴", texto: "Mejor evitar", clase: "estado-evitar" };
+    if (nivelRiesgo === "medio" || mejor < 85 || empateAlto)
+      return { nivel: "cautela", emoji: "🟡", texto: "Partido con cautela", clase: "estado-cautela" };
+    return { nivel: "recomendable", emoji: "🟢", texto: "Partido recomendable", clase: "estado-recomendable" };
   }
 
   // Filtro anti-trampas: detecta riesgo SOLO con señales reales del modelo
@@ -382,8 +417,9 @@ const RoprostEngine = (() => {
       return { ...base, pronosticos: [], confianzaGeneral: 0, hayValor: false, sinDatos: true,
         analisisIA: "IA: No hay datos reales suficientes de estos equipos para un análisis fiable. No se recomienda apostar este partido.",
         alertaIA: { alerta: true, nivel: "alto", mensaje: "⚠ Sin datos suficientes para analizar. Evitar apuestas.", razones: ["faltan estadísticas reales"] },
+        estadoIA: { nivel: "evitar", emoji: "🔴", texto: "Mejor evitar", clase: "estado-evitar" },
         cornersInfo: "IA: Datos insuficientes para evaluar córners con confianza.",
-        motivoGeneral: "Sin pick seguro: faltan datos reales del equipo." };
+        motivoGeneral: "Mejor evitar este partido (faltan datos reales del equipo)." };
     }
 
     const candidatos = [];
@@ -439,39 +475,57 @@ const RoprostEngine = (() => {
       });
     }
 
-    /* ── 4. CÓRNERS · se mantienen (mejores cuotas). Compiten por confianza.
-          Si los stats son genéricos (cf=ca=4.5) la estimación NO es fiable:
-          subimos mucho el umbral y avisamos con mensaje de IA. ── */
-    const statsDefaultLocal = !local.statsReales || (local.cf === 4.5 && local.ca === 4.5);
-    const statsDefaultVisit = !visitante.statsReales || (visitante.cf === 4.5 && visitante.ca === 4.5);
-    const datosCornersFiables = !(statsDefaultLocal || statsDefaultVisit);
-    const umbralCornersEfectivo = datosCornersFiables ? CONFIG.UMBRAL_CORNERS : 88;
+    /* ── 4. CÓRNERS · PICK EXTRA, nunca principal ──────────────────────
+          Las stats de córners (cf/ca) se DERIVAN de los goles, no son
+          muestras reales de córners → se tratan como ESTIMADAS y exigen
+          el umbral alto (90%). Solo si en el futuro llegan datos reales
+          (local.cornersStatsReales) se aplica el umbral normal (82%).
+          Aun así, los córners SOLO entran como extra junto a un pick
+          principal; jamás encabezan la tarjeta. ── */
+    const datosCornersReales = !!(local.cornersStatsReales && visitante.cornersStatsReales);
+    const datosCornersFiables = datosCornersReales;
+    const umbralCornersEfectivo = datosCornersReales ? CONFIG.UMBRAL_CORNERS : CONFIG.UMBRAL_CORNERS_ESTIMADO;
 
+    let cornerExtra = null;
     const rCorners = mejorLinea(CONFIG.LINEAS_CORNERS, lambdaCorners, umbralCornersEfectivo, tipoPartido);
     if (rCorners) {
-      candidatos.push({
+      cornerExtra = {
         etiqueta: etiquetaLinea(rCorners, "córners"),
         prob:     rCorners.prob,
         mercado:  "Córners",
-        motivo:   motivoCorners(rCorners, lambdaCorners, local, visitante)
-      });
+        extra:    true,
+        motivo:   `${motivoCorners(rCorners, lambdaCorners, local, visitante)} (Pick EXTRA: estimación de córners, no dato de muestra real; se añade solo como complemento.)`
+      };
     }
 
-    /* ── Ordenar: la IA compara todos los mercados y elige los más fuertes.
-          Más seguras primero; ante confianza similar, prioridad de mercado.
-          1 por tipo, máx 3. Córners compite de forma normal (mejores cuotas). ── */
+    /* ── La IA compara los mercados PRINCIPALES y elige los más fuertes.
+          Principales: Goles, Doble oportunidad, Goles favorito (córners NO).
+          Más seguras primero; ante confianza similar, prioridad de mercado. ── */
     candidatos.sort((a, b) =>
       (Math.round(b.prob) - Math.round(a.prob)) ||
       ((PRIORIDAD[a.mercado] ?? 99) - (PRIORIDAD[b.mercado] ?? 99)) ||
       (b.prob - a.prob)
     );
+
+    // 1 pick por mercado principal
     const usados = new Set();
-    const seleccionados = [];
+    const principales = [];
     for (const c of candidatos) {
       if (usados.has(c.mercado)) continue;
       usados.add(c.mercado);
-      seleccionados.push(c);
-      if (seleccionados.length >= CONFIG.MAX_PICKS_PARTIDO) break;
+      principales.push(c);
+    }
+
+    // Córners: solo como EXTRA y SOLO si ya hay al menos un pick principal.
+    // Se añade al final, así nunca puede encabezar la tarjeta.
+    const combinados = [...principales];
+    if (cornerExtra && principales.length) combinados.push(cornerExtra);
+
+    // Máximo 2 pronósticos. Se permite un 3º SOLO si los tres superan el umbral premium (88%).
+    let seleccionados = combinados.slice(0, CONFIG.MAX_PICKS_NORMAL);
+    if (combinados.length >= CONFIG.MAX_PICKS_PREMIUM) {
+      const tres = combinados.slice(0, CONFIG.MAX_PICKS_PREMIUM);
+      if (tres.every(c => Math.round(c.prob) >= CONFIG.UMBRAL_TERCER_PICK)) seleccionados = tres;
     }
 
     const pronosticos = seleccionados.map(c => {
@@ -484,6 +538,7 @@ const RoprostEngine = (() => {
         riesgo:     riesgo.texto,
         riesgoClase:riesgo.clase,
         mercado:    c.mercado,
+        extra:      !!c.extra,
         sel:        c.sel || "",
         motivo:     c.motivo
       };
@@ -496,10 +551,11 @@ const RoprostEngine = (() => {
     // ── La IA estudia el partido, redacta su conclusión y detecta riesgo ──
     const ctxIA = { lambdaLocal, lambdaVisitante, lambdaGoles, lambdaCorners, mercado, datosCornersFiables };
     const senales      = calcularSenales(local, visitante, ctxIA);
-    const analisisIA    = generarRazonamiento(local, visitante, ctxIA, senales, pronosticos);
     const alertaIA      = evaluarRiesgo(local, visitante, ctxIA, senales, pronosticos);
+    const estadoIA      = calcularEstadoIA(pronosticos, alertaIA, mercado, true);
+    const analisisIA    = generarRazonamiento(local, visitante, ctxIA, senales, pronosticos, estadoIA);
     const cornersInfo   = (!datosCornersFiables && !pronosticos.some(p => p.mercado === "Córners"))
-      ? "IA: Datos insuficientes para evaluar córners con confianza." : "";
+      ? "IA: Datos de córners estimados (no muestra real); no se recomienda apostar córners salvo confianza muy alta." : "";
 
     return {
       ...base,
@@ -509,8 +565,9 @@ const RoprostEngine = (() => {
       sinDatos:       false,
       analisisIA,
       alertaIA,
+      estadoIA,
       cornersInfo,
-      motivoGeneral:  pronosticos.length ? "" : "Sin pick seguro: ninguna línea supera el umbral de confianza."
+      motivoGeneral:  pronosticos.length ? "" : "Mejor evitar este partido."
     };
   }
 
@@ -518,21 +575,17 @@ const RoprostEngine = (() => {
 
   /* ── Top Apuestas ────────────────────────────────────────────────── */
   function topApuestas(analizados) {
-    let bets = analizados
+    const bets = analizados
       .filter(p => p.hayValor)
       .map(p => ({
         partido:   `${p.local.name} vs ${p.visitante.name}`,
         liga:      p.liga,
-        ...p.pronosticos[0]
-      }));
+        ...p.pronosticos[0]          // pick principal (nunca córners)
+      }))
+      // Calidad antes que cantidad: nunca por debajo del mínimo, sin rebajar.
+      .filter(b => b.confianza >= CONFIG.TOP_MINIMO)
+      .sort((a, b) => b.confianza - a.confianza);   // de la más segura a la menos
 
-    // Filtro dinámico: mostrar lo mejor disponible
-    const sobre85 = bets.filter(b => b.confianza >= 85).length;
-    const sobre80 = bets.filter(b => b.confianza >= 80).length;
-    if (sobre85 >= 3)      bets = bets.filter(b => b.confianza >= 80);
-    else if (sobre80 >= 3) bets = bets.filter(b => b.confianza >= 75);
-
-    bets.sort((a, b) => b.confianza - a.confianza);
     return bets.slice(0, CONFIG.MAX_TOP_APUESTAS);
   }
 
@@ -542,6 +595,7 @@ const RoprostEngine = (() => {
     analizados.forEach(p => {
       if (!p.hayValor) return;
       p.pronosticos.forEach(pr => {
+        if (pr.extra) return;                         // córners estimados nunca son pick del día
         if (pr.confianza >= CONFIG.PICK_DIA_MINIMO) {
           todos.push({
             partido:   `${p.local.name} vs ${p.visitante.name}`,
@@ -551,7 +605,7 @@ const RoprostEngine = (() => {
         }
       });
     });
-    todos.sort((a, b) => b.confianza - a.confianza);
+    todos.sort((a, b) => b.confianza - a.confianza);  // del más seguro al menos seguro
     return todos.slice(0, CONFIG.MAX_PICKS_DIA);
   }
 
