@@ -386,7 +386,7 @@ body {
 .caret { color:var(--txt-faint); transition:transform .25s ease; font-size:12px; }
 .match.open .caret { transform:rotate(180deg); color:var(--accent); }
 .match-body { max-height:0; overflow:hidden; transition:max-height .35s ease, padding .35s ease; padding:0 17px; }
-.match.open .match-body { max-height:1100px; padding:4px 17px 18px; }
+.match.open .match-body { max-height:2200px; padding:4px 17px 18px; }
 .match-tag {
   font-family:var(--font-data); font-size:12px; color:var(--txt-mut);
   padding:8px 0 11px; border-top:1px solid var(--border-soft); margin-top:2px;
@@ -429,6 +429,55 @@ body {
 }
 .ultimos-equipo strong { font-size:12px; color:var(--accent); font-weight:700; }
 .ultimos-equipo span { font-family:var(--font-data); font-size:11px; color:var(--txt-mut); }
+
+
+/* ---- 12b. FORTALEZA LOCAL / VISITANTE + FORMA Y RACHA -------------- */
+.rp-fort {
+  margin:6px 0 4px; padding:12px;
+  background:linear-gradient(140deg,var(--surface-2),var(--surface));
+  border:1px solid var(--border-soft); border-radius:12px;
+}
+.rp-fort-title {
+  font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--accent); margin-bottom:10px;
+}
+.rp-fort-grid { display:grid; grid-template-columns:1fr; gap:10px; }
+@media (min-width:560px){ .rp-fort-grid { grid-template-columns:1fr 1fr; } }
+.rp-fort-col {
+  background:rgba(255,255,255,.025); border:1px solid var(--border-soft);
+  border-radius:10px; padding:10px; display:flex; flex-direction:column; gap:5px;
+}
+.rp-fort-team { font-size:13px; font-weight:700; color:var(--txt); }
+.rp-fort-sub  { font-size:10.5px; text-transform:uppercase; letter-spacing:.04em; color:var(--txt-mut); }
+.rp-fort-wdl  { font-family:var(--font-data); font-size:12px; color:var(--txt-mut); }
+.rp-fort-wdl b { color:var(--txt); font-weight:700; }
+.rp-fort-bar  { display:flex; height:7px; border-radius:5px; overflow:hidden; background:var(--surface-3); }
+.rp-bar-w { background:var(--accent); }
+.rp-bar-d { background:#f5c518; }
+.rp-bar-l { background:#f8717a; }
+.rp-fort-pcts  { font-family:var(--font-data); font-size:10.5px; color:var(--txt-mut); }
+.rp-fort-goals { font-family:var(--font-data); font-size:11px; color:var(--txt-faint); }
+.rp-fort-empty { font-size:11px; color:var(--txt-faint); font-style:italic; }
+
+.rp-forma { margin-top:10px; padding-top:10px; border-top:1px solid var(--border-soft); }
+.rp-forma-title {
+  font-size:11px; font-weight:700; letter-spacing:.05em; text-transform:uppercase;
+  color:var(--txt-mut); margin-bottom:8px;
+}
+.rp-forma-load, .rp-forma-na { font-size:11.5px; color:var(--txt-faint); font-style:italic; }
+.rp-forma-fila {
+  display:flex; flex-wrap:wrap; align-items:center; gap:8px;
+  padding:6px 0; border-top:1px dashed var(--border-soft);
+}
+.rp-forma-fila:first-of-type { border-top:none; }
+.rp-forma-team   { font-size:12.5px; font-weight:700; color:var(--txt); min-width:120px; flex:1 1 120px; }
+.rp-forma-iconos { font-size:13px; letter-spacing:1px; white-space:nowrap; }
+.rp-racha { display:flex; flex-wrap:wrap; gap:5px; flex:1 1 100%; }
+.rp-racha-badge {
+  font-family:var(--font-data); font-size:10px; color:var(--txt-mut);
+  background:var(--surface-3); border:1px solid var(--border-soft);
+  border-radius:20px; padding:2px 9px;
+}
 
 
 /* ---- 13. HISTORIAL / RESULTADOS / EN VIVO -------------------------- */
