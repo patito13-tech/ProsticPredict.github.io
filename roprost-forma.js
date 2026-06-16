@@ -156,6 +156,32 @@ const RoprostForma = (() => {
         <div class="rp-forma-title">📈 Forma últimos 5 · Racha actual</div>
         ${filaEquipo(nombres[0] || "Local", dl)}
         ${filaEquipo(nombres[1] || "Visitante", dv)}`;
+
+      // Enriquecer el bloque "🧠 Análisis IA" con la forma reciente real
+      try {
+        const analisis = match && match.querySelector(".rp-analisis-text");
+        if (analisis && !analisis.dataset.formaAdded && (dl || dv)) {
+          const winsForm = (d) => d && d.form ? d.form.filter(x => x === "W").length : 0;
+          const partes = [];
+          if (dl && dl.streaks.total) {
+            partes.push(dl.streaks.sinPerder >= 3
+              ? `${nombres[0]} llega con ${dl.streaks.sinPerder} partidos sin perder`
+              : `${nombres[0]} ganó ${winsForm(dl)} de sus últimos ${dl.form.length}`);
+          }
+          if (dv && dv.streaks.total) {
+            partes.push(dv.streaks.derrotas >= 2
+              ? `${nombres[1]} acumula ${dv.streaks.derrotas} derrotas seguidas`
+              : `${nombres[1]} ganó ${winsForm(dv)} de sus últimos ${dv.form.length}`);
+          }
+          if (partes.length) {
+            const frase = document.createElement("span");
+            frase.className = "rp-analisis-forma";
+            frase.textContent = ` Forma reciente: ${partes.join("; ")}.`;
+            analisis.appendChild(frase);
+            analisis.dataset.formaAdded = "1";
+          }
+        }
+      } catch (_) { /* enriquecer es opcional, nunca debe romper */ }
     } catch (e) {
       console.warn("forma: render falló", e);
       cont.innerHTML = `<div class="rp-forma-na">Forma y racha no disponibles.</div>`;
